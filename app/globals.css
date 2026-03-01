@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --brand-500: #3b82f6;
+  --brand-700: #1d4ed8;
+  --mastery-good: #10b981;
+  --mastery-average: #f59e0b;
+  --mastery-weak: #f43f5e;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #f8fafc;
+  color: #1f2937;
+}
+
+/* Mastery badges */
+.mastery-good { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+.mastery-average { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.mastery-weak { background: #ffe4e6; color: #9f1239; border: 1px solid #fecdd3; }
+
+/* Streak animation */
+@keyframes flame {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+.streak-flame { animation: flame 1.5s ease-in-out infinite; }
+
+/* Smooth page transitions */
+.page-enter { opacity: 0; transform: translateY(10px); }
+.page-enter-active { opacity: 1; transform: translateY(0); transition: all 0.3s ease; }
