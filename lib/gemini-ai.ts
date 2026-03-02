@@ -2,174 +2,51 @@ import { logger } from './logger';
 
 const log = logger.child('GeminiAI');
 
-function getGeminiKey(): string {
-  return (
-    process.env.GEMINI_API_KEY ||
-    process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
-    ''
-  ).trim();
-}
+const getKeys = () => [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2].filter(Boolean);
 
-const RETRY_DELAYS_MS = [2000]; // single retry for 429 → fail fast (~2–3s instead of 15–20s)
-const MAX_RETRIES = 1;
-
-async function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function callGemini(prompt: string, maxTokens = 1000): Promise<string> {
-  const apiKey = getGeminiKey();
-  if (!apiKey) {
-    throw new Error('Gemini is not configured. Add GEMINI_API_KEY or NEXT_PUBLIC_GEMINI_API_KEY to .env.local.');
-  }
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
-  let lastError: Error | null = null;
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    if (attempt > 0) {
-      const delay = RETRY_DELAYS_MS[attempt - 1] ?? 10000;
-      log.info('Retrying Gemini after rate limit', { attempt, delayMs: delay });
-      await sleep(delay);
-    }
-
-    log.debug('Calling Gemini API', { maxTokens, attempt: attempt + 1 });
-    const response = await fetch(url, {
+async function callGemini(prompt: string, retries = 4) {
+  const keys = getKeys();
+  for (let attempt = 0; attempt < retries; attempt++) {
+    const apiKey = keys[attempt % keys.length];
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    log.debug('Calling Gemini', { attempt: attempt + 1, keyIndex: attempt % keys.length });
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: maxTokens, temperature: 0.7 },
-      }),
-      signal: AbortSignal.timeout(60000), // 60s server timeout
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 1500, temperature: 0.7 } }),
     });
-
-    if (response.ok) {
-      const data = await response.json();
-      const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      log.info('Gemini response received', { length: content.length });
-      return content;
-    }
-
-    const e = await response.text();
-    log.error('Gemini API error', { status: response.status, error: e });
-
-    if (response.status === 429 && attempt < MAX_RETRIES) {
-      lastError = new Error('Rate limit exceeded. Wait a moment and try again.');
+    if (res.status === 429) {
+      log.info('Rate limited, switching key', { attempt: attempt + 1 });
+      await new Promise(r => setTimeout(r, 1500));
       continue;
     }
-
-    if (response.status === 429) {
-      throw new Error('Rate limit exceeded. Please wait a minute and try again.');
-    }
-    throw new Error(`Gemini error: ${response.status}`);
+    if (!res.ok) throw new Error(`Gemini error: ${res.status}`);
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   }
-
-  throw lastError ?? new Error('Gemini request failed');
+  throw new Error('All Gemini keys rate limited');
 }
 
-const MAX_SLIDES_CHARS = 4000;
-
-/** Generate 5 quiz questions from segment slides text (Gemini). */
-export async function generateSegmentQuizQuestions(
-  segmentIndex: number,
-  segmentSlides: string
-): Promise<Array<{ id: string; question: string; options: string[]; correctIndex: number }>> {
-  const truncated =
-    segmentSlides.length > MAX_SLIDES_CHARS
-      ? segmentSlides.slice(0, MAX_SLIDES_CHARS) + '\n\n[... content truncated ...]'
-      : segmentSlides;
-  log.info('Generating segment quiz from slides (Gemini)', { segmentIndex, contentLength: truncated.length });
-
-  const prompt = `You are an expert educational assessor. Read the segment slides below and generate quiz questions based ONLY on that content.
-
-Rules:
-- Use ONLY information from the segment slides. Generate exactly 5 multiple-choice questions, each with exactly 4 options.
-- Return ONLY a valid JSON array. No markdown, no code fences. Each object: "id" (string, e.g. "s0-q1"), "question" (string), "options" (array of 4 strings), "correctIndex" (number 0-3 for the correct option). Use ids s${segmentIndex}-q1, s${segmentIndex}-q2, ... s${segmentIndex}-q5.
-
---- SEGMENT SLIDES ---
-${truncated}
---- END SLIDES ---
-
-Return only the JSON array of 5 questions.`;
-
-  const raw = await callGemini(prompt, 2500);
-  const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-  try {
-    const questions = JSON.parse(cleaned);
-    if (!Array.isArray(questions) || questions.length === 0) throw new Error('Invalid format');
-    return questions.slice(0, 5).map((q: any, i: number) => ({
-      id: q.id || `s${segmentIndex}-q${i + 1}`,
-      question: q.question || '',
-      options: Array.isArray(q.options) ? q.options.slice(0, 4) : [],
-      correctIndex:
-        typeof q.correctIndex === 'number' && q.correctIndex >= 0 && q.correctIndex < 4 ? q.correctIndex : 0,
-    }));
-  } catch (e) {
-    log.error('Failed to parse Gemini quiz response', { preview: cleaned.substring(0, 300) });
-    throw e;
-  }
+export async function generateFlashcards(topic: string, weakAreas: string[]) {
+  const prompt = `Generate 5 flashcards for a university student studying ${topic}. Focus on: ${weakAreas.join(', ')}. Return ONLY valid JSON array: [{"front":"question","back":"answer","difficulty":"easy|medium|hard"}]`;
+  const response = await callGemini(prompt);
+  return JSON.parse(response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
 }
 
-/** Generate flashcards from segment slides text (Gemini). */
-export async function generateSegmentFlashcards(
-  segmentIndex: number,
-  segmentSlides: string,
-  count = 6
-): Promise<Array<{ front: string; back: string }>> {
-  const truncated =
-    segmentSlides.length > MAX_SLIDES_CHARS
-      ? segmentSlides.slice(0, MAX_SLIDES_CHARS) + '\n\n[... content truncated ...]'
-      : segmentSlides;
-  log.info('Generating segment flashcards from slides (Gemini)', { segmentIndex, count });
-
-  const prompt = `You are an expert tutor. Read the segment slides below and create ${count} review flashcards based ONLY on that content. Return ONLY a valid JSON array. No markdown, no code fences. Each object: "front" (question or term), "back" (short answer).
-
---- SEGMENT SLIDES ---
-${truncated}
---- END SLIDES ---
-
-Return only the JSON array.`;
-
-  const raw = await callGemini(prompt, 1500);
-  const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-  try {
-    const cards = JSON.parse(cleaned);
-    if (!Array.isArray(cards)) throw new Error('Invalid format');
-    return cards.slice(0, count).map((c: any) => ({
-      front: c.front || '',
-      back: c.back || '',
-    }));
-  } catch (e) {
-    log.error('Failed to parse Gemini flashcards response', { preview: cleaned.substring(0, 300) });
-    throw e;
-  }
+export async function generateSummary(topic: string, segmentTitle: string, segmentContent: string) {
+  const prompt = `A student is confused about "${segmentTitle}" in ${topic}. Content: ${segmentContent}. Explain this concept simply in 3-4 sentences like you're talking to a friend. Use analogies. Be encouraging.`;
+  const response = await callGemini(prompt);
+  return response;
 }
-export async function generateFlashcards(topic, missedQuestions, learningStyle) {
-  log.info('Generating flashcards', { topic, missedCount: missedQuestions.length });
-  const prompt = `You are an expert tutor. A student studying "${topic}" missed: ${missedQuestions.join(', ')}. Style: ${learningStyle}. Generate 5 flashcards. Return ONLY valid JSON array, no backticks: [{"front":"...","back":"...","difficulty":"easy|medium|hard"}]`;
-  const r = await callGemini(prompt, 1500);
-  try { return JSON.parse(r.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim()); } catch { return [{ front: topic, back: 'Review this topic.', difficulty: 'medium' }]; }
+
+export async function generatePracticeQuestions(moduleName: string, weakTopics: string[], format: string, count: number) {
+  const prompt = `Generate ${count} ${format} practice questions for ${moduleName}. Focus on weak topics: ${weakTopics.join(', ')}. Return ONLY valid JSON array: [{"question":"...","options":["A","B","C","D"],"correctAnswer":0,"explanation":"...","topic":"...","difficulty":"easy|medium|hard"}]`;
+  const response = await callGemini(prompt);
+  return JSON.parse(response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
 }
-export async function generateVideoSummary(topic, segmentTitle, segmentContent, timestamp) {
-  log.info('Generating summary', { topic, segmentTitle });
-  return await callGemini(`You are a patient tutor. Student watching "${topic}", segment "${segmentTitle}" clicked "I'm Lost" at ${timestamp}. Content: ${segmentContent}. Give a 3-sentence simplified summary. Start with "Don't worry! Here's the key idea:"`, 300);
-}
-export async function generatePracticePaper(moduleName, weakTopics, preferredFormat, questionCount = 10) {
-  log.info('Generating practice paper', { moduleName, weakTopics });
-  const prompt = `Create ${questionCount} ${preferredFormat} questions for "${moduleName}" targeting: ${weakTopics.join(', ')}. Return ONLY valid JSON array: [{"id":"q1","question":"...","type":"${preferredFormat}"${preferredFormat==='mcq'?',"options":["A. ...","B. ...","C. ...","D. ..."]':''},"correctAnswer":"...","explanation":"...","difficulty":"easy|medium|hard","topic":"..."}]`;
-  const r = await callGemini(prompt, 3000);
-  try { return JSON.parse(r.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim()); } catch { return []; }
-}
-export async function analyzeBurnoutRisk(studyData) {
-  log.info('Analyzing burnout', { hours: studyData.totalHoursThisWeek });
-  const signals = []; let riskScore = 0;
-  if (studyData.totalHoursThisWeek > 35) { signals.push('Studying 35+ hours/week'); riskScore += 30; }
-  if (studyData.avgSessionHour >= 23 || studyData.avgSessionHour <= 4) { signals.push('Late night studying'); riskScore += 20; }
-  if (studyData.avgDurationMinutes > 180) { signals.push('Sessions exceed 3 hours'); riskScore += 15; }
-  if (studyData.scoresTrend?.length >= 3) { const r = studyData.scoresTrend.slice(-3); if (r[2]<r[0]&&r[1]<r[0]) { signals.push('Declining scores'); riskScore += 25; } }
-  if (studyData.streakDays > 14) { signals.push('No rest in 2+ weeks'); riskScore += 10; }
-  const riskLevel = riskScore >= 50 ? 'high' : riskScore >= 25 ? 'moderate' : 'low';
-  let recommendation = 'Your study patterns look healthy!';
-  if (riskLevel !== 'low') { recommendation = await callGemini(`Student burnout signals: ${signals.join(', ')}. ${studyData.totalHoursThisWeek}hrs/week. Give 2-3 caring sentences of advice.`, 200); }
-  return { riskLevel, riskScore: Math.min(100, riskScore), signals, recommendation };
+
+export async function detectBurnout(studyData: any) {
+  const prompt = `Analyze student burnout risk. Data: ${JSON.stringify(studyData)}. Return ONLY JSON: {"riskLevel":"low|moderate|high","riskScore":0-100,"signals":["..."],"recommendation":"..."}`;
+  const response = await callGemini(prompt);
+  return JSON.parse(response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
 }

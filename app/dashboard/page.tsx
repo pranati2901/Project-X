@@ -87,6 +87,7 @@ export default function DashboardPage() {
           <h1 className="text-xl font-extrabold text-white">NTU<span className="text-blue-400">learn</span></h1>
           <div className="flex items-center gap-4">
             <button onClick={() => window.location.href = '/course'} className="bg-white/10 hover:bg-white/20 text-white text-sm px-4 py-2 rounded-lg transition-all">Continue Learning</button>
+            <button onClick={() => window.location.href = '/insights'} className="bg-blue-500 hover:bg-blue-600 text-white text-sm px-4 py-2 rounded-lg transition-all">🧠 AI Insights</button>
             <button onClick={() => window.location.href = '/community'} className="bg-white/10 hover:bg-white/20 text-white text-sm px-4 py-2 rounded-lg transition-all">💬 Community</button>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">N</div>
@@ -105,11 +106,11 @@ export default function DashboardPage() {
         {/* Top Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           {[
-            { label: 'Overall Progress', value: `${overallProgress}%`, icon: '📊', color: 'blue' },
-            { label: 'Day Streak', value: `${data.student.streak} days`, icon: '🔥', color: 'amber' },
-            { label: 'Hours This Week', value: `${totalHours.toFixed(1)}h`, icon: '⏱️', color: 'green' },
-            { label: 'AI Flashcards', value: data.flashcardsGenerated, icon: '🃏', color: 'violet' },
-            { label: 'Practice Qs', value: data.practiceQuestionsAttempted, icon: '📝', color: 'rose' },
+            { label: 'Overall Progress', value: `${overallProgress}%`, icon: '📊' },
+            { label: 'Day Streak', value: `${data.student.streak} days`, icon: '🔥' },
+            { label: 'Hours This Week', value: `${totalHours.toFixed(1)}h`, icon: '⏱️' },
+            { label: 'AI Flashcards', value: data.flashcardsGenerated, icon: '🃏' },
+            { label: 'Practice Qs', value: data.practiceQuestionsAttempted, icon: '📝' },
           ].map((stat) => (
             <div key={stat.label} className="bg-white/5 border border-white/10 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -259,7 +260,6 @@ export default function DashboardPage() {
                     <p className="text-xs text-slate-300 leading-relaxed">{burnout.recommendation}</p>
                   </div>
 
-                  {/* Signal Breakdown */}
                   {burnout.breakdown && burnout.breakdown.length > 0 && (
                     <div className="mb-3">
                       <p className="text-xs text-slate-400 font-medium mb-2">📊 Signal Breakdown</p>
@@ -280,7 +280,6 @@ export default function DashboardPage() {
                     </div>
                   )}
 
-                  {/* AI Study Schedule */}
                   {burnout.schedule && (
                     <div className="mb-3 p-4 bg-violet-500/10 border border-violet-500/20 rounded-xl">
                       <p className="text-xs font-medium text-violet-300 mb-2">📅 AI-Suggested Schedule</p>
@@ -303,14 +302,12 @@ export default function DashboardPage() {
                     </div>
                   )}
 
-                  {/* Weekly Tip */}
                   {burnout.weeklyTip && (
                     <div className="mb-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
                       <p className="text-xs text-blue-300">💡 <span className="font-medium">Tip:</span> {burnout.weeklyTip}</p>
                     </div>
                   )}
 
-                  {/* Mental Health Resources */}
                   {burnout.mentalHealthResources && burnout.mentalHealthResources.length > 0 && (
                     <div className="mt-3">
                       <p className="text-xs text-slate-400 font-medium mb-2">🫂 NTU Support Resources</p>
