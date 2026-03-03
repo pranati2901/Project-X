@@ -41,7 +41,7 @@ A 6-pillar adaptive learning system:
 2. **Learner DNA Profile** — Personality quiz → AI persona object
 3. **Micro-Learning Engine** — Segmented videos + quiz gates + AI flashcards
 4. **Progress Tracking** — Mastery dashboard + streaks + inactivity recovery
-5. **Wellbeing** — AI burnout detector + mental health check-ins
+5. **Wellbeing** — AI burnout detector
 6. **Community** — Study groups + anonymous peer comparison
 
 ---
@@ -53,7 +53,7 @@ A 6-pillar adaptive learning system:
 - Role-based access: Student / Professor / Admin
 
 ### 🧠 Learner DNA Quiz
-- 7-question personality + cognitive assessment
+- 10-question personality + cognitive assessment
 - Generates a `UserPersona` object the AI references for all recommendations
 - Classifies learning style: short-term intensive vs long-term gradual
 - Detects preferred question format (MCQ / short answer / essay)
@@ -74,7 +74,6 @@ A 6-pillar adaptive learning system:
 
 ### 🧘 Wellbeing
 - AI burnout detector (monitors study patterns, late nights, declining scores)
-- Mental health check-in prompts with university resource connections
 
 ### 👥 Community
 - Form/join study groups with time + location
@@ -102,7 +101,7 @@ A 6-pillar adaptive learning system:
 └────────┼────────────┼────────────┼───────────┼──────┘
          │            │            │           │
     ┌────┴────────────┴────────────┴───────────┴──┐
-    │              AZURE OPENAI (GPT-4o)          │
+    │                Gemini API key               │
     └─────────────────────────────────────────────┘
                      │
     ┌────────────────┴────────────────────────────┐
@@ -122,7 +121,7 @@ A 6-pillar adaptive learning system:
 | Animation | Framer Motion | Smooth page transitions |
 | Charts | Recharts | Dashboard visualizations |
 | Auth & DB | Firebase Auth + Firestore | User management + data |
-| AI | Azure OpenAI (GPT-4o) | Flashcards, summaries, papers, burnout |
+| AI | Gemini API key | Flashcards, summaries, papers, burnout |
 | Deployment | Vercel | One-click deployment |
 
 ---
@@ -132,7 +131,7 @@ A 6-pillar adaptive learning system:
 ### Prerequisites
 - Node.js 18+ installed
 - Firebase project created
-- Azure OpenAI resource provisioned
+- Gemini API resource provisioned
 
 ### Step 1: Clone & Install
 
@@ -208,7 +207,6 @@ ntulearn/
 │   └── quiz/               # Quiz components
 ├── lib/                    # Core logic & services
 │   ├── firebase.ts         # Firebase config + helpers
-│   ├── azure-ai.ts         # Azure OpenAI service
 │   ├── logger.ts           # Structured logging utility
 │   └── demo-data.ts        # Demo module content
 ├── testbench/              # Testing documentation
@@ -271,7 +269,7 @@ Analyze study patterns for burnout risk.
 
 1. **Landing Page** → Click "Get Started"
 2. **Login** → Select role (Student), enter demo credentials
-3. **Learner DNA Quiz** → Answer 7 questions → View generated persona
+3. **Learner DNA Quiz** → Answer 10 questions → View generated persona
 4. **Course Page** → Watch Segment 1 → Take quiz → Unlock Segment 2
 5. **Fail a quiz** → See AI-generated flashcards appear
 6. **Click "I'm Lost"** → See instant 3-sentence summary
