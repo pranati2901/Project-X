@@ -19,6 +19,8 @@ export default function LoginPage() {
       const result = await loginUser(email, password);
       if (result.success && result.user) {
         await ensureUserDoc(result.user.uid, result.user.email ?? '', result.user.displayName ?? undefined);
+        window.sessionStorage.setItem("ntulearn_signed_in", "1");
+        document.cookie = `ntulearn_logged_in=1; Path=/; SameSite=Lax; Max-Age=604800`;
         router.push('/quiz');
       } else {
         setError(result.error || 'Login failed');

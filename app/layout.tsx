@@ -1,5 +1,6 @@
 import './globals.css';
 import AITutor from '@/components/AITutor';
+import AuthGuard from '@/components/AuthGuard';
 
 export const metadata = {
   title: 'NTUlearn - AI-Powered Adaptive Learning',
@@ -10,7 +11,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        {children}
+        <AuthGuard>{children}</AuthGuard>
         <AITutor />
       </body>
     </html>

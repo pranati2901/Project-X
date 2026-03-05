@@ -81,6 +81,10 @@ export async function registerUser(email: string, password: string, role: string
 export async function logoutUser() {
   logger.info('User logging out');
   await signOut(auth);
+  if (typeof document !== 'undefined') {
+    window.sessionStorage.removeItem('ntulearn_signed_in');
+    document.cookie = 'ntulearn_logged_in=; Path=/; SameSite=Lax; Max-Age=0';
+  }
 }
 
 // ---- User Profile Helpers ----
