@@ -1,28 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-
-const mockData = {
-  student: { name: 'Narhen K.', email: 'student@ntu.edu.sg', persona: 'Long-term Gradual Learner', streak: 7 },
-  modules: [
-    { name: 'SC1003 Module 2: Control Structures', progress: 67, segments: { completed: 2, total: 3 }, quizAvg: 85, status: 'in-progress' },
-    { name: 'SC1003 Module 3: Functions', progress: 30, segments: { completed: 1, total: 4 }, quizAvg: 70, status: 'in-progress' },
-    { name: 'SC1003 Module 1: Intro to Python', progress: 100, segments: { completed: 3, total: 3 }, quizAvg: 95, status: 'completed' },
-  ],
-  weeklyHours: [
-    { day: 'Mon', hours: 2.5 }, { day: 'Tue', hours: 1.8 }, { day: 'Wed', hours: 3.2 },
-    { day: 'Thu', hours: 2.0 }, { day: 'Fri', hours: 1.5 }, { day: 'Sat', hours: 4.0 }, { day: 'Sun', hours: 0.5 },
-  ],
-  quizScores: [
-    { quiz: 'M1 S1', score: 90 }, { quiz: 'M1 S2', score: 85 }, { quiz: 'M1 S3', score: 95 },
-    { quiz: 'M2 S1', score: 80 }, { quiz: 'M2 S2', score: 85 }, { quiz: 'M3 S1', score: 70 },
-  ],
-  peerComparison: { you: 78, cohortAvg: 65, top10: 92 },
-  burnout: { riskLevel: 'low', riskScore: 15, signals: [], breakdown: [], recommendation: 'Your study patterns look healthy! Keep it up.', schedule: null, weeklyTip: '', mentalHealthResources: [] },
-  flashcardsGenerated: 24,
-  practiceQuestionsAttempted: 47,
-  imLostClicks: 3,
-};
+import { useStudentData, detectPhase } from '@/lib/useStudentData';
 
 function BarChart({ data, maxVal, color }: { data: { label: string; value: number }[]; maxVal?: number; color?: string }) {
   const max = maxVal || Math.max(...data.map(d => d.value), 1);
@@ -46,9 +25,13 @@ function BarChart({ data, maxVal, color }: { data: { label: string; value: numbe
 }
 
 export default function DashboardPage() {
-  const [data] = useState(mockData);
+  const { dashboardData, studentData, loading: dataLoading, isRealData } = useStudentData();
+  const data = dashboardData;
   const [burnout, setBurnout] = useState<any>(data.burnout);
   const [burnoutLoading, setBurnoutLoading] = useState(false);
+
+  // Client-side phase detection for adaptive greeting
+  const { phase } = detectPhase(studentData);
 
   const checkBurnout = async () => {
     setBurnoutLoading(true);
@@ -67,6 +50,31 @@ export default function DashboardPage() {
   const totalHours = data.weeklyHours.reduce((sum, d) => sum + d.hours, 0);
   const overallProgress = Math.round(data.modules.reduce((sum, m) => sum + m.progress, 0) / data.modules.length);
 
+  // Phase-adaptive greeting
+  const firstName = data.student.name.split(' ')[0];
+  const daysSince = studentData.daysSinceLogin || 0;
+  let greeting = `Welcome back, ${firstName}! 👋`;
+  let greetingSub = '';
+  if (phase === 'inactive' && daysSince > 7) {
+    greeting = `Welcome back, ${firstName}! It's been ${daysSince} days.`;
+    greetingSub = 'Here\'s a quick review of where you left off.';
+  } else if (phase === 'accelerating') {
+    greeting = `You're on fire, ${firstName}! 🔥`;
+    greetingSub = 'Ready for a harder challenge?';
+  } else if (phase === 'declining') {
+    greeting = `Let's get back on track, ${firstName} 💪`;
+    greetingSub = 'A focused session could help turn things around.';
+  }
+
+  if (dataLoading) return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center">
+      <div className="text-center">
+        <svg className="animate-spin h-10 w-10 mx-auto text-blue-400 mb-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+        <p className="text-blue-300">Loading your dashboard...</p>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
       {/* Header */}
@@ -78,7 +86,7 @@ export default function DashboardPage() {
             <button onClick={() => window.location.href = '/insights'} className="bg-blue-500 hover:bg-blue-600 text-white text-sm px-4 py-2 rounded-lg transition-all">🧠 AI Insights</button>
             <button onClick={() => window.location.href = '/community'} className="bg-white/10 hover:bg-white/20 text-white text-sm px-4 py-2 rounded-lg transition-all">💬 Community</button>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">N</div>
+              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">{data.student.name.charAt(0)}</div>
               <span className="text-sm text-slate-300">{data.student.name}</span>
             </div>
           </div>
@@ -86,10 +94,23 @@ export default function DashboardPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-white mb-1">Welcome back, {data.student.name.split(' ')[0]}! 👋</h2>
-          <p className="text-slate-400 text-sm">Learner DNA: <span className="text-violet-300 font-medium">{data.student.persona}</span></p>
+        {/* Data source banner */}
+        <div className={`mb-4 px-4 py-2 rounded-xl text-xs font-medium flex items-center gap-2 ${isRealData ? 'bg-green-500/10 border border-green-500/20 text-green-300' : 'bg-amber-500/10 border border-amber-500/20 text-amber-300'}`}>
+          <span>{isRealData ? '🟢 Live data from your Firestore learning history' : '🟡 Demo data — complete quizzes to see your real progress'}</span>
         </div>
+
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-white mb-1">{greeting}</h2>
+          <p className="text-slate-400 text-sm">
+            {greetingSub && <span className="text-blue-300 mr-2">{greetingSub}</span>}
+            Learner DNA: <span className="text-violet-300 font-medium">{data.student.persona}</span>
+          </p>
+        </div>
+
+        {/* Contextual action prompt based on phase */}
+        {phase === 'inactive' && <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-between"><p className="text-sm text-amber-200">💤 You&apos;ve been away for a while. A quick 15-minute review session can rebuild momentum.</p><button onClick={() => window.location.href = '/watch'} className="bg-amber-500 hover:bg-amber-600 text-white text-xs px-4 py-2 rounded-lg transition-all whitespace-nowrap">Quick Review</button></div>}
+        {phase === 'accelerating' && <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-xl flex items-center justify-between"><p className="text-sm text-green-200">⚡ Your scores are climbing fast! Try a practice paper to push your limits.</p><button onClick={() => window.location.href = '/practice-paper'} className="bg-green-500 hover:bg-green-600 text-white text-xs px-4 py-2 rounded-lg transition-all whitespace-nowrap">Take Challenge</button></div>}
+        {phase === 'declining' && <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-between"><p className="text-sm text-red-200">📉 Your recent scores have dipped. A focused session on weak topics can help reverse the trend.</p><button onClick={() => window.location.href = '/insights'} className="bg-red-500 hover:bg-red-600 text-white text-xs px-4 py-2 rounded-lg transition-all whitespace-nowrap">View Insights</button></div>}
 
         {/* Top Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">

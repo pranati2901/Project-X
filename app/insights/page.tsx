@@ -1,34 +1,6 @@
 'use client';
-import { useState, useEffect } from 'react';
-
-const studentData: any = {
-  name: 'Narhen K.', learningStyle: 'Long-term Gradual', weeksActive: 8,
-  modules: [{ name: 'SC1003 M1: Intro to Python', progress: 100 },{ name: 'SC1003 M2: Control Structures', progress: 67 },{ name: 'SC1003 M3: Functions', progress: 30 }],
-  weeklyHoursHistory: [8, 12, 15, 10, 14, 16, 13, 11],
-  quizHistory: [
-    { topic: 'Variables', score: 92, week: 1 },{ topic: 'Variables', score: 88, week: 2 },{ topic: 'Variables', score: 55, week: 5 },
-    { topic: 'Data Types', score: 85, week: 1 },{ topic: 'Data Types', score: 90, week: 3 },{ topic: 'Data Types', score: 88, week: 6 },
-    { topic: 'If-Else', score: 80, week: 2 },{ topic: 'If-Else', score: 92, week: 4 },{ topic: 'If-Else', score: 58, week: 6 },
-    { topic: 'Loops Intro', score: 75, week: 3 },{ topic: 'Loops Intro', score: 78, week: 5 },
-    { topic: 'For Loops', score: 85, week: 3 },{ topic: 'For Loops', score: 90, week: 5 },{ topic: 'For Loops', score: 62, week: 7 },
-    { topic: 'While Loops', score: 70, week: 4 },{ topic: 'While Loops', score: 68, week: 6 },{ topic: 'While Loops', score: 65, week: 8 },
-    { topic: 'Nested Loops', score: 65, week: 4 },{ topic: 'Nested Loops', score: 60, week: 6 },{ topic: 'Nested Loops', score: 58, week: 8 },
-    { topic: 'Functions Intro', score: 80, week: 5 },{ topic: 'Functions Intro', score: 82, week: 7 },
-    { topic: 'Scope', score: 60, week: 5 },{ topic: 'Scope', score: 55, week: 7 },{ topic: 'Scope', score: 52, week: 8 },
-    { topic: 'Return Values', score: 75, week: 6 },{ topic: 'Return Values', score: 70, week: 8 },
-    { topic: 'Recursion', score: 45, week: 7 },{ topic: 'Recursion', score: 48, week: 8 },
-    { topic: 'List Operations', score: 82, week: 7 },{ topic: 'List Operations', score: 50, week: 8 },
-  ],
-  loginFrequency: [3, 5, 6, 4, 5, 6, 5, 4], avgSessionMinutes: 95,
-  flashcardsReviewed: 42, lostClicks: 5, lastActive: '2 hours ago', daysSinceLogin: 0,
-};
-
-// Auto-compute weak/strong topics from quiz data — NOT hardcoded
-const _ta = Object.entries(
-  studentData.quizHistory.reduce((a: any, q: any) => { if (!a[q.topic]) a[q.topic] = []; a[q.topic].push(q.score); return a; }, {})
-).map(([t, s]: [string, any]) => ({ topic: t, avg: Math.round(s.reduce((a: number, b: number) => a + b, 0) / s.length) }));
-studentData.weakTopics = _ta.filter(t => t.avg < 70).sort((a, b) => a.avg - b.avg).map(t => t.topic);
-studentData.strongTopics = _ta.filter(t => t.avg >= 80).sort((a, b) => b.avg - a.avg).map(t => t.topic);
+import { useState, useEffect, useRef } from 'react';
+import { useStudentData } from '@/lib/useStudentData';
 
 const pc: any = { 'onboarding':'#3b82f6','building-momentum':'#10b981','steady-progress':'#22c55e','accelerating':'#8b5cf6','plateauing':'#f59e0b','declining':'#ef4444','inactive':'#6b7280','at-risk':'#dc2626' };
 const pe: any = { 'onboarding':'🌱','building-momentum':'🚀','steady-progress':'📈','accelerating':'⚡','plateauing':'📊','declining':'📉','inactive':'💤','at-risk':'🚨' };
@@ -95,7 +67,7 @@ function PredictionTab({ scores, topics }: any) {
   );
 }
 
-function ModuleDiveTab() {
+function ModuleDiveTab({ studentData }: { studentData: any }) {
   const [selectedModule, setSelectedModule] = useState(0);
   const [diveData, setDiveData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -164,12 +136,8 @@ function ModuleDiveTab() {
   );
 }
 
-function CarelessWeaknessTab() {
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => { async function fetch_() { try { const res = await fetch('/api/weakness-analysis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quizHistory: studentData.quizHistory }) }); setData(await res.json()); } catch (e) { console.error(e); } setLoading(false); } fetch_(); }, []);
-  if (loading) return <div className="text-center py-12"><svg className="animate-spin h-8 w-8 mx-auto text-blue-400 mb-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg><p className="text-sm text-blue-300">Analyzing error patterns...</p></div>;
-  if (!data) return <p className="text-red-400 text-center py-8">Analysis failed.</p>;
+function CarelessWeaknessTab({ data }: { data: any }) {
+  if (!data) return <div className="text-center py-12"><svg className="animate-spin h-8 w-8 mx-auto text-blue-400 mb-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg><p className="text-sm text-blue-300">Analyzing error patterns...</p></div>;
   const icons: any = { 'careless': '🎲', 'genuine-weakness': '❌', 'understood': '✅', 'insufficient-data': '❓' };
   return (
     <div className="space-y-6">
@@ -206,12 +174,8 @@ function CarelessWeaknessTab() {
   );
 }
 
-function RepeatedFailuresTab() {
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => { async function fetch_() { try { const res = await fetch('/api/weakness-analysis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quizHistory: studentData.quizHistory }) }); setData(await res.json()); } catch (e) { console.error(e); } setLoading(false); } fetch_(); }, []);
-  if (loading) return <div className="text-center py-12"><svg className="animate-spin h-8 w-8 mx-auto text-blue-400 mb-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg><p className="text-sm text-blue-300">Detecting failure patterns...</p></div>;
-  if (!data) return <p className="text-red-400 text-center py-8">Analysis failed.</p>;
+function RepeatedFailuresTab({ data }: { data: any }) {
+  if (!data) return <div className="text-center py-12"><svg className="animate-spin h-8 w-8 mx-auto text-blue-400 mb-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg><p className="text-sm text-blue-300">Detecting failure patterns...</p></div>;
   const patternIcons: any = { stuck: '🔁', regression: '📉', ceiling: '🚧', struggling: '😓', improving: '📈' };
   return (
     <div className="space-y-6">
@@ -241,7 +205,7 @@ function RepeatedFailuresTab() {
   );
 }
 
-function FlashcardsTab() {
+function FlashcardsTab({ studentData }: { studentData: any }) {
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [cards, setCards] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -288,7 +252,7 @@ function FlashcardsTab() {
   );
 }
 
-function StudyPlanTab() {
+function StudyPlanTab({ studentData }: { studentData: any }) {
   const [plan, setPlan] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [completed, setCompleted] = useState<any>({});
@@ -332,7 +296,7 @@ function StudyPlanTab() {
   );
 }
 
-function AgentVisualizerTab() {
+function AgentVisualizerTab({ studentData }: { studentData: any }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [activeAgent, setActiveAgent] = useState(-1);
@@ -442,12 +406,14 @@ function AgentVisualizerTab() {
 }
 
 export default function InsightsPage() {
+  const { studentData, loading: dataLoading, isRealData } = useStudentData();
   const [ins, setIns] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('timeline');
   const [expNudge, setExpNudge] = useState<number | null>(null);
   const [expInsight, setExpInsight] = useState<number | null>(null);
   const [selectedModule, setSelectedModule] = useState('SC1003');
+  const [showSignals, setShowSignals] = useState(false);
 
   const AVAILABLE_MODULES = [
     { code: 'SC1003', name: 'Introduction to Computational Thinking (Python)' },
@@ -458,8 +424,19 @@ export default function InsightsPage() {
     { code: 'CC0006', name: 'Sustainability: Soc, Econ, Env' },
   ];
 
+  // Shared weakness analysis (used by both Careless and RepeatedFailures tabs)
+  const [weaknessData, setWeaknessData] = useState<any>(null);
+  const weaknessFetched = useRef(false);
+  const fetchWeakness = () => {
+    if (weaknessFetched.current) return;
+    weaknessFetched.current = true;
+    fetch('/api/weakness-analysis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quizHistory: studentData.quizHistory }) })
+      .then(r => r.json()).then(setWeaknessData).catch(console.error);
+  };
+
+  const didFetch = useRef(false);
   const fetch_ = async () => { setLoading(true); try { const r = await fetch('/api/insights', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(studentData) }); setIns(await r.json()); } catch (e) { console.error(e); } setLoading(false); };
-  useEffect(() => { fetch_(); }, []);
+  useEffect(() => { if (!dataLoading && !didFetch.current) { didFetch.current = true; fetch_(); } }, [dataLoading]);
 
   const phase = ins?.learningStateAnalysis;
   const color = pc[phase?.currentPhase] || '#3b82f6';
@@ -511,20 +488,26 @@ export default function InsightsPage() {
           <div className="text-center py-20"><svg className="animate-spin h-12 w-12 mx-auto text-blue-400 mb-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg><p className="text-lg text-blue-300">Running 10 AI analysis engines...</p><p className="text-sm text-slate-500 mt-2">Topic Mastery · Forgetting Curve · Velocity · Cognitive Load · Optimal Time · ML Prediction · Careless Detection · Pattern Analysis</p></div>
         ) : ins && !ins.error ? (
           <>
+            {/* Data source banner */}
+            <div className={`mb-4 px-4 py-2 rounded-xl text-xs font-medium flex items-center gap-2 ${isRealData ? 'bg-green-500/10 border border-green-500/20 text-green-300' : 'bg-amber-500/10 border border-amber-500/20 text-amber-300'}`}>
+              <span>{isRealData ? '🟢 Showing your real learning data from Firestore' : '🟡 Demo data — complete quizzes to see your real analytics'}</span>
+            </div>
+
             {phase && (
               <div className="p-6 rounded-2xl border bg-white/5 mb-6" style={{ borderColor: color + '40' }}>
                 <div className="flex items-center justify-between flex-wrap gap-4">
                   <div>
-                    <div className="flex items-center gap-3 mb-2"><div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: color }} /><span className="text-lg font-bold" style={{ color }}>{emoji} {(phase.currentPhase || '').split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</span><span className="text-xs bg-white/10 text-slate-300 px-2 py-0.5 rounded-full">Confidence: {Math.round((phase.confidenceScore || 0) * 100)}%</span></div>
+                    <div className="flex items-center gap-3 mb-2"><div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: color }} /><span className="text-lg font-bold" style={{ color }}>{emoji} {(phase.currentPhase || '').split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</span><span className="text-xs bg-white/10 text-slate-300 px-2 py-0.5 rounded-full">Confidence: {Math.round((phase.confidenceScore || 0) * 100)}%</span>
+                    <button onClick={() => setShowSignals(!showSignals)} className="text-xs bg-white/5 hover:bg-white/10 text-slate-400 px-2 py-0.5 rounded-full ml-2 transition-all">{showSignals ? 'Hide Signals' : 'Show Signals'}</button></div>
                     <p className="text-sm text-slate-400 max-w-xl">{phase.phaseDescription}</p>
-                    {phase.signals?.length > 0 && <div className="flex flex-wrap gap-2 mt-2">{phase.signals.map((s: string, i: number) => <span key={i} className="text-xs bg-white/5 border border-white/10 text-slate-400 px-2 py-1 rounded-lg">📊 {s}</span>)}</div>}
+                    {showSignals && phase.signals?.length > 0 && <div className="flex flex-wrap gap-2 mt-2">{phase.signals.map((s: string, i: number) => <span key={i} className="text-xs bg-white/5 border border-white/10 text-slate-400 px-2 py-1 rounded-lg">📊 {s}</span>)}</div>}
                   </div>
                   <div className="text-right"><p className="text-xs text-slate-400">vs Last Week</p><p className={`text-sm font-bold ${phase.comparedToLastWeek === 'improving' ? 'text-green-400' : phase.comparedToLastWeek === 'declining' ? 'text-red-400' : 'text-amber-400'}`}>{phase.comparedToLastWeek === 'improving' ? '📈 Improving' : phase.comparedToLastWeek === 'declining' ? '📉 Declining' : '➡️ Stable'}</p><p className="text-xs text-slate-500 mt-1 max-w-xs">{phase.predictedTrajectory}</p></div>
                 </div>
               </div>
             )}
 
-            <div className="flex gap-2 mb-6 flex-wrap">{tabs.map(t => (<button key={t.id} onClick={() => setTab(t.id)} className={`px-3 py-2 rounded-xl text-xs font-medium transition-all ${tab === t.id ? 'bg-blue-500 text-white shadow-lg' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}>{t.label}</button>))}</div>
+            <div className="flex gap-2 mb-6 flex-wrap">{tabs.map(t => (<button key={t.id} onClick={() => { setTab(t.id); if (t.id === 'careless' || t.id === 'failures') fetchWeakness(); }} className={`px-3 py-2 rounded-xl text-xs font-medium transition-all ${tab === t.id ? 'bg-blue-500 text-white shadow-lg' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}>{t.label}</button>))}</div>
 
             {tab === 'timeline' && (
               <div className="space-y-6">
@@ -627,14 +610,37 @@ export default function InsightsPage() {
             )}
 
             {tab === 'predict' && <PredictionTab scores={studentData.quizHistory.map((q: any) => q.score)} topics={studentData.quizHistory} />}
-            {tab === 'modules' && <ModuleDiveTab />}
-            {tab === 'careless' && <CarelessWeaknessTab />}
-            {tab === 'failures' && <RepeatedFailuresTab />}
-            {tab === 'flashcards' && <FlashcardsTab />}
-            {tab === 'studyplan' && <StudyPlanTab />}
-            {tab === 'agents' && <AgentVisualizerTab />}
+            {tab === 'modules' && <ModuleDiveTab studentData={studentData} />}
+            {tab === 'careless' && <CarelessWeaknessTab data={weaknessData} />}
+            {tab === 'failures' && <RepeatedFailuresTab data={weaknessData} />}
+            {tab === 'flashcards' && <FlashcardsTab studentData={studentData} />}
+            {tab === 'studyplan' && <StudyPlanTab studentData={studentData} />}
+            {tab === 'agents' && <AgentVisualizerTab studentData={studentData} />}
 
-            {tab === 'nudges' && <div className="space-y-4">{(ins.nudges || []).map((n: any, i: number) => (
+            {tab === 'nudges' && <div className="space-y-4">
+              {/* Action Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <button onClick={() => window.location.href = '/watch'} className="p-5 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-left hover:bg-blue-500/20 transition-all group">
+                  <span className="text-2xl">🎬</span>
+                  <h4 className="text-sm font-bold text-white mt-2">Watch & Learn</h4>
+                  <p className="text-xs text-slate-400 mt-1">Continue your video lessons and take segment quizzes</p>
+                  <span className="text-xs text-blue-400 mt-2 inline-block group-hover:underline">Go to Watch &rarr;</span>
+                </button>
+                <button onClick={() => window.location.href = '/practice-paper'} className="p-5 bg-violet-500/10 border border-violet-500/20 rounded-2xl text-left hover:bg-violet-500/20 transition-all group">
+                  <span className="text-2xl">📝</span>
+                  <h4 className="text-sm font-bold text-white mt-2">Practice Paper</h4>
+                  <p className="text-xs text-slate-400 mt-1">Generate an AI practice exam to test your knowledge</p>
+                  <span className="text-xs text-violet-400 mt-2 inline-block group-hover:underline">Generate Paper &rarr;</span>
+                </button>
+                <button onClick={() => window.location.href = '/course'} className="p-5 bg-green-500/10 border border-green-500/20 rounded-2xl text-left hover:bg-green-500/20 transition-all group">
+                  <span className="text-2xl">📚</span>
+                  <h4 className="text-sm font-bold text-white mt-2">Course Materials</h4>
+                  <p className="text-xs text-slate-400 mt-1">Browse your course modules and learning resources</p>
+                  <span className="text-xs text-green-400 mt-2 inline-block group-hover:underline">View Course &rarr;</span>
+                </button>
+              </div>
+              {/* AI Nudges */}
+              {(ins.nudges || []).map((n: any, i: number) => (
               <div key={i} className={`border rounded-2xl overflow-hidden ${n.priority === 'high' ? 'bg-red-500/5 border-red-500/20' : n.priority === 'medium' ? 'bg-amber-500/5 border-amber-500/20' : 'bg-green-500/5 border-green-500/20'}`}>
                 <div className="p-5 cursor-pointer" onClick={() => setExpNudge(expNudge === i ? null : i)}>
                   <div className="flex items-start gap-3"><span className="text-2xl">{{ 'topic-reminder':'📚','study-pattern':'📊','streak-motivation':'🔥','difficulty-adjustment':'⚙️','inactivity-warning':'⏰','acceleration-praise':'🚀' }[n.type as string] || '📌'}</span><div className="flex-1"><div className="flex items-center gap-2 mb-1"><h4 className="text-sm font-bold text-white">{n.title}</h4><span className={`text-xs px-2 py-0.5 rounded-full ${n.priority === 'high' ? 'bg-red-500/20 text-red-300' : 'bg-amber-500/20 text-amber-300'}`}>{n.priority}</span></div><p className="text-sm text-slate-300">{n.message}</p></div><span className="text-slate-500">{expNudge === i ? '▲' : '▼'}</span></div>

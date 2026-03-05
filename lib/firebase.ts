@@ -13,7 +13,7 @@
 
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs, updateDoc, serverTimestamp, orderBy } from 'firebase/firestore';
 
 import { logger } from './logger';
 
@@ -205,6 +205,26 @@ export async function getAllProgress(uid: string) {
   const q = query(collection(db, 'quizResults'), where('uid', '==', uid));
   const snapshot = await getDocs(q);
   return snapshot.docs.map(d => d.data());
+}
+
+// ---- Bulk Query Helpers (for insights/dashboard) ----
+
+export async function getAllModuleProgress(uid: string) {
+  const q = query(collection(db, 'moduleProgress'), where('userId', '==', uid));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function getAllSegmentQuizScores(uid: string) {
+  const q = query(collection(db, 'segmentQuizScores'), where('uid', '==', uid));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function getStudySessions(uid: string) {
+  const q = query(collection(db, 'studySessions'), where('uid', '==', uid));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 // ---- Study Session Tracking ----

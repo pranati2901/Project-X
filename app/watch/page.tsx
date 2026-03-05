@@ -9,6 +9,7 @@ import { ChatbotModal } from '@/components/ChatbotModal';
 import { FlashcardModal } from '@/components/FlashcardModal';
 import { demoModule } from '@/data/demoModule';
 import { progressService } from '@/lib/progress';
+import { clearStudentDataCache } from '@/lib/useStudentData';
 import { auth, onAuthStateChanged } from '@/lib/firebase';
 import type { Flashcard } from '@/lib/ai-help';
 import type { Segment, ModuleProgress, QuizQuestion } from '@/types/learning';
@@ -169,14 +170,17 @@ function WatchPageContent() {
 
   const handleSegmentEnd = useCallback((segmentIndex: number) => {
     if (!effectiveSegmentSlides[segmentIndex]) return;
+    if (quizOpen) return; // don't interrupt an open quiz
     setQuizSegmentIndex(segmentIndex);
     setQuizOpen(true);
+    setPaused(true); // pause video so it doesn't hit next segment boundary
     progressService.recordSegmentReached(userId, moduleId, segmentIndex).then(loadProgress);
-  }, [loadProgress, effectiveSegmentSlides]);
+  }, [loadProgress, effectiveSegmentSlides, quizOpen]);
 
   const handleQuizPass = useCallback(
     async (score: number) => {
       await progressService.recordQuizResult(userId, moduleId, quizSegmentIndex, score);
+      clearStudentDataCache(); // force fresh data on next dashboard/insights visit
       await loadProgress();
       setQuizOpen(false);
       setPaused(false);

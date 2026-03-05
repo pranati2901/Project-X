@@ -59,6 +59,13 @@ export function VideoPlayer({
     setPaused(false);
   }, [setPaused]);
 
+  // Actually pause/play the YouTube player when the paused prop changes
+  useEffect(() => {
+    const p = playerRef.current;
+    if (!p || !ready) return;
+    if (paused) { p.pauseVideo?.(); } else { p.playVideo?.(); }
+  }, [paused, ready]);
+
   useEffect(() => {
     if (!ready || !segments.length) return;
     const SEGMENT_END_TOLERANCE = 0.5;
