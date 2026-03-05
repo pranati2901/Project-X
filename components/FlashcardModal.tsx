@@ -81,9 +81,10 @@ export function FlashcardModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
       <div className="bg-gray-800 rounded-xl shadow-xl max-w-lg w-full p-6">
         <p className="text-amber-400 font-medium mb-1">You didn&apos;t pass the quiz</p>
-        <h2 className="text-xl font-semibold mb-4 text-gray-200">
+        <h2 className="text-xl font-semibold mb-1 text-gray-200">
           {useSm2 ? 'Spaced review — rate how well you knew it' : 'Quick review — then try again'}
         </h2>
+        <p className="text-xs text-emerald-400 mb-4 inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-500/15 border border-emerald-500/30">✓ Quality-checked by AI</p>
         {sessionCards.length === 0 && (
           <>
             {loading && (

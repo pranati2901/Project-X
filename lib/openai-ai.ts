@@ -228,7 +228,8 @@ const MAX_SLIDES_CHARS = 4000;
 export async function generateSegmentFlashcards(
   segmentIndex: number,
   segmentSlides: string,
-  count = 6
+  count = 6,
+  feedback?: string
 ): Promise<Array<{ front: string; back: string }>> {
   const truncated =
     segmentSlides.length > MAX_SLIDES_CHARS
@@ -239,6 +240,7 @@ export async function generateSegmentFlashcards(
 Rules:
 - Use ONLY information from the segment slides. Each flashcard: "front" (question or key term), "back" (short answer from the slides).
 - Return ONLY a valid JSON array. No markdown, no prose before or after.
+${feedback ? `\nNote: Previous attempt was rejected because: ${feedback}. Improve accordingly.\n` : ''}
 
 --- SEGMENT SLIDES ---
 ${truncated}
@@ -267,10 +269,12 @@ Generate ${count} flashcards. Return only the JSON array.`;
 export async function generateFlashcardsForSegmentByTopic(
   segmentIndex: number,
   topic: string,
-  count = 6
+  count = 6,
+  feedback?: string
 ): Promise<Array<{ front: string; back: string }>> {
   log.info('Generating segment flashcards from topic (no slides)', { segmentIndex, topic, count });
   const prompt = `You are generating study flashcards for a university student. This is for segment ${segmentIndex + 1} of a course. The course/module topic is: ${topic}.
+${feedback ? `\nNote: Previous attempt was rejected because: ${feedback}. Improve accordingly.\n` : ''}
 
 Generate ${count} review flashcards that would help a student prepare for a quiz on this topic. Each flashcard should have "front" (question or key term) and "back" (concise answer). Base content on typical university-level material for this subject.
 

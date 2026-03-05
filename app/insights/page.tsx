@@ -231,7 +231,10 @@ function FlashcardsTab({ studentData }: { studentData: any }) {
       {cards && !loading && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white">📚 {selectedTopic} — Card {currentCard + 1}/{cards.cards.length}</h3>
+            <div>
+              <h3 className="text-sm font-bold text-white">📚 {selectedTopic} — Card {currentCard + 1}/{cards.cards.length}</h3>
+              <p className="text-xs text-emerald-400 mt-0.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30">✓ Quality-checked by AI</p>
+            </div>
             <div className="flex gap-2"><button onClick={() => setCurrentCard(Math.max(0, currentCard - 1))} disabled={currentCard === 0} className="px-3 py-1.5 bg-white/10 hover:bg-white/20 disabled:opacity-30 text-white text-xs rounded-lg">← Prev</button><button onClick={() => setCurrentCard(Math.min(cards.cards.length - 1, currentCard + 1))} disabled={currentCard === cards.cards.length - 1} className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-30 text-white text-xs rounded-lg">Next →</button></div>
           </div>
           {cards.cards.map((card: any, i: number) => i === currentCard && (
