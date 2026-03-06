@@ -16,6 +16,9 @@ type VideoPlayerProps = {
   onTimeUpdate?: (currentTime: number) => void;
   paused: boolean;
   setPaused: (p: boolean) => void;
+  /** When set to a number, seek to that time (seconds) then call onSeekDone. Used e.g. when closing quiz without finishing. */
+  seekToSeconds?: number | null;
+  onSeekDone?: () => void;
 };
 
 export function VideoPlayer({
@@ -28,9 +31,12 @@ export function VideoPlayer({
   onTimeUpdate,
   paused,
   setPaused,
+  seekToSeconds,
+  onSeekDone,
 }: VideoPlayerProps) {
   const playerRef = useRef<any>(null);
   const [ready, setReady] = useState(false);
+  const lastSeekTarget = useRef<number | null>(null);
   // Defer YouTube render so Strict Mode’s mount→unmount→mount doesn’t leave the API with a dead iframe (null.src)
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -71,6 +77,20 @@ export function VideoPlayer({
     if (!p || !ready) return;
     if (paused) { p.pauseVideo?.(); } else { p.playVideo?.(); }
   }, [paused, ready]);
+
+  // When parent requests a seek (e.g. close quiz without finishing), seek then notify
+  useEffect(() => {
+    if (seekToSeconds == null) {
+      lastSeekTarget.current = null;
+      return;
+    }
+    if (!ready || typeof seekToSeconds !== 'number' || seekToSeconds === lastSeekTarget.current) return;
+    const p = playerRef.current;
+    if (!p?.seekTo) return;
+    lastSeekTarget.current = seekToSeconds;
+    p.seekTo(seekToSeconds, true);
+    onSeekDone?.();
+  }, [ready, seekToSeconds, onSeekDone]);
 
   useEffect(() => {
     if (!ready || !segments.length) return;

@@ -63,6 +63,8 @@ function WatchPageContent() {
   const [summaryMistakesToNote, setSummaryMistakesToNote] = useState<string[]>([]);
   /** Mistakes from failed attempts this segment; merged with current attempt when they pass. */
   const [accumulatedMistakes, setAccumulatedMistakes] = useState<{ question: string; chosenOption: string; correctOption: string }[]>([]);
+  /** When set, VideoPlayer seeks to this time then clears (used when closing quiz without finishing). */
+  const [seekToSeconds, setSeekToSeconds] = useState<number | null>(null);
 
   const inFlightRef = useRef<Record<string, Promise<QuizQuestion[]> | null>>({});
   const lastFailRef = useRef<Record<string, number>>({});
@@ -218,7 +220,6 @@ function WatchPageContent() {
       clearStudentDataCache(); // force fresh data on next dashboard/insights visit
       await loadProgress();
       setQuizOpen(false);
-      setPaused(false);
       setSummaryOpen(true);
       setSummaryLoading(true);
       setSummaryBullets([]);
@@ -325,6 +326,17 @@ function WatchPageContent() {
   const handleLostClick = useCallback(() => {
     setChatbotOpen(true);
   }, []);
+
+  /** When user closes quiz without passing: keep video paused and seek back into segment so they can't skip ahead. */
+  const handleCloseQuizWithoutFinishing = useCallback(() => {
+    setPaused(true);
+    setQuizOpen(false);
+    const seg = segments[quizSegmentIndex];
+    if (seg) {
+      const target = Math.max(seg.start, seg.end - 10);
+      setSeekToSeconds(target);
+    }
+  }, [quizSegmentIndex, segments]);
 
   const openQuizForSegment = useCallback((segmentIndex: number) => {
     const hasSlides = !!effectiveSegmentSlides[segmentIndex];
@@ -471,12 +483,14 @@ function WatchPageContent() {
                 videoId={demoModule.youtubeVideoId}
                 segments={segments}
                 allowedEndTime={allowedEndTime}
-                currentSegmentIndex={currentSegmentIndex >= 0 ? currentSegmentIndex : 0}
+                currentSegmentIndex={currentSegmentIndex}
                 onSegmentEnd={handleSegmentEnd}
                 onDurationReady={durationReady}
                 onTimeUpdate={setCurrentTime}
                 paused={paused}
                 setPaused={setPaused}
+                seekToSeconds={seekToSeconds}
+                onSeekDone={() => setSeekToSeconds(null)}
               />
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -505,6 +519,7 @@ function WatchPageContent() {
         onPass={handleQuizPass}
         onFail={handleQuizFail}
         onShowFlashcards={handleShowFlashcards}
+        onClose={handleCloseQuizWithoutFinishing}
         flashcardLoading={flashcardLoading}
         flashcardError={flashcardError}
       />
@@ -531,7 +546,10 @@ function WatchPageContent() {
       />
       <SegmentLearnSummary
         open={summaryOpen}
-        onClose={() => setSummaryOpen(false)}
+        onClose={() => {
+          setSummaryOpen(false);
+          setPaused(false);
+        }}
         bullets={summaryBullets}
         oneThing={summaryOneThing}
         mistakesToNote={summaryMistakesToNote}

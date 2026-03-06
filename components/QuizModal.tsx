@@ -17,6 +17,7 @@ export function QuizModal({
   onPass,
   onFail,
   onShowFlashcards,
+  onClose,
   flashcardLoading = false,
   flashcardError = null,
 }: {
@@ -31,6 +32,8 @@ export function QuizModal({
   onPass: (score: number, mistakes?: { question: string; chosenOption: string; correctOption: string }[]) => void;
   onFail: (mistakes?: { question: string; chosenOption: string; correctOption: string }[]) => void;
   onShowFlashcards?: () => void;
+  /** Called when user closes the quiz without passing (e.g. X button). Video should stay paused and seek back. */
+  onClose?: () => void;
   flashcardLoading?: boolean;
   flashcardError?: string | null;
 }) {
@@ -148,9 +151,24 @@ export function QuizModal({
         style={{ boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)' }}
       >
         {/* Compact header */}
-        <div className="flex-shrink-0 border-b border-white/5 px-4 py-2">
-          <p className="font-['Plus_Jakarta_Sans',sans-serif] text-xs font-semibold text-indigo-300">Segment {segmentIndex + 1}</p>
-          <h2 className="text-sm font-semibold text-white mt-0.5">Check your understanding</h2>
+        <div className="flex-shrink-0 border-b border-white/5 px-4 py-2 flex items-center justify-between gap-2">
+          <div>
+            <p className="font-['Plus_Jakarta_Sans',sans-serif] text-xs font-semibold text-indigo-300">Segment {segmentIndex + 1}</p>
+            <h2 className="text-sm font-semibold text-white mt-0.5">Check your understanding</h2>
+          </div>
+          {onClose && (!submitted || (score !== null && score < PASS_THRESHOLD)) && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-600 transition-colors shrink-0"
+              aria-label="Close without finishing"
+              title="Close without finishing — video will stay paused"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
 
         {!submitted ? (
