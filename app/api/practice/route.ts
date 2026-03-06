@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generatePracticePaper } from '@/lib/openai-ai';
 import { logger } from '@/lib/logger';
 import { verifyAuth } from '@/lib/api-auth';
+import { requireFields } from '@/lib/validate';
 
 const log = logger.child('API:Practice');
 
@@ -17,13 +18,12 @@ export async function POST(request: NextRequest) {
   if (!authResult) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const { moduleName, weakTopics, preferredFormat, questionCount } = await request.json();
+    const body = await request.json();
+    const err = requireFields(body, { moduleName: 'string', weakTopics: 'array' });
+    if (err) return NextResponse.json({ error: err }, { status: 400 });
+    const { moduleName, weakTopics, preferredFormat, questionCount } = body;
 
     log.info('Practice paper requested', { moduleName, weakTopics, preferredFormat });
-
-    if (!moduleName || !weakTopics) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-    }
 
     const questions = await generatePracticePaper(
       moduleName,

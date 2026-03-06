@@ -1,0 +1,6 @@
+{
+  "messages": [
+    { "role": "user", "content": "Can you explain recursion in simple terms? I keep getting confused about the base case." }
+  ],
+  "systemInstruction": "You are a patient computer science tutor helping a university student."
+}

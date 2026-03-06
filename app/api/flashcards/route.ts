@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import { logger } from '@/lib/logger';
 import { complete } from '@/lib/openai-ai';
 import { verifyAuth } from '@/lib/api-auth';
+import { requireFields } from '@/lib/validate';
 
 const log = logger.child('FlashcardGenerator');
 
@@ -111,7 +112,10 @@ export async function POST(request: Request) {
   if (!authResult) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const { topic, score, context } = await request.json();
+    const body = await request.json();
+    const err = requireFields(body, { topic: 'string' });
+    if (err) return NextResponse.json({ error: err }, { status: 400 });
+    const { topic, score, context } = body;
     log.info('Generating flashcards', { topic, score });
 
     // --- MAKER: generate flashcards ---

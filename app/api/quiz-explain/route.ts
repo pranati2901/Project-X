@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { complete } from '@/lib/openai-ai';
 import { verifyAuth } from '@/lib/api-auth';
+import { requireFields } from '@/lib/validate';
 
 const log = logger.child('QuizExplainer');
 
@@ -18,7 +19,10 @@ export async function POST(request: Request) {
   if (!authResult) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const { question, userAnswer, correctAnswer, topic, allOptions } = await request.json();
+    const body = await request.json();
+    const err = requireFields(body, { question: 'string', correctAnswer: 'string', topic: 'string' });
+    if (err) return NextResponse.json({ error: err }, { status: 400 });
+    const { question, userAnswer, correctAnswer, topic, allOptions } = body;
     log.info('Explaining quiz answer', { topic, correct: userAnswer === correctAnswer });
 
     const prompt = `You are Guardian AI Tutor at NTU Singapore. A student got this question wrong:

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { complete } from '@/lib/openai-ai';
 import { verifyAuth } from '@/lib/api-auth';
+import { requireFields } from '@/lib/validate';
 
 const log = logger.child('AgentOrchestrator');
 
@@ -20,6 +21,8 @@ export async function POST(request: Request) {
   const startTime = Date.now();
   try {
     const studentData = await request.json();
+    const err = requireFields(studentData, { quizHistory: 'array' });
+    if (err) return NextResponse.json({ error: err }, { status: 400 });
     log.info('Multi-agent orchestration started');
 
     const agentResults: any[] = [];

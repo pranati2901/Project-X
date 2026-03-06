@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { complete } from '@/lib/openai-ai';
 import { verifyAuth } from '@/lib/api-auth';
+import { requireFields } from '@/lib/validate';
 
 const log = logger.child('StudyPlan');
 
@@ -18,7 +19,10 @@ export async function POST(request: Request) {
   if (!authResult) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const { weakTopics, strongTopics, quizHistory, avgSessionMinutes, learningStyle } = await request.json();
+    const body = await request.json();
+    const err = requireFields(body, { weakTopics: 'array', quizHistory: 'array' });
+    if (err) return NextResponse.json({ error: err }, { status: 400 });
+    const { weakTopics, strongTopics, quizHistory, avgSessionMinutes, learningStyle } = body;
     log.info('Generating study plan', { weakCount: weakTopics.length, style: learningStyle });
 
     const topicScores: Record<string, number[]> = {};

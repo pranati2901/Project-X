@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { logger } from '@/lib/logger';
 import { verifyAuth } from '@/lib/api-auth';
+import { requireFields } from '@/lib/validate';
 
 const log = logger.child('API:Chat');
 
@@ -11,15 +12,13 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
+    const err = requireFields(body, { messages: 'array' });
+    if (err) return NextResponse.json({ error: err }, { status: 400 });
     const { messages, systemInstruction, image } = body as {
       messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
       systemInstruction?: string;
       image?: string;
     };
-
-    if (!Array.isArray(messages) || messages.length === 0) {
-      return NextResponse.json({ error: 'messages array required' }, { status: 400 });
-    }
 
     const apiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_2;
     if (!apiKey) {

@@ -1,0 +1,8 @@
+{
+  "totalHoursThisWeek": 42,
+  "sessionsThisWeek": 14,
+  "avgDurationMinutes": 200,
+  "avgSessionHour": 23,
+  "scoresTrend": [80, 70, 55],
+  "streakDays": 18
+}

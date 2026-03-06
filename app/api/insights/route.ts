@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { verifyAuth } from '@/lib/api-auth';
+import { requireFields } from '@/lib/validate';
 
 const log = logger.child('InsightsEngine');
 
@@ -141,6 +142,8 @@ export async function POST(request: Request) {
   const start = Date.now();
   try {
     const studentData = await request.json();
+    const err = requireFields(studentData, {});
+    if (err) return NextResponse.json({ error: err }, { status: 400 });
     log.info('Full insights analysis started', { student: studentData.name });
 
     const analyzer = new LearningStateAnalyzer(studentData);

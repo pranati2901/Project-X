@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { complete } from '@/lib/openai-ai';
 import { verifyAuth } from '@/lib/api-auth';
+import { requireFields } from '@/lib/validate';
 
 const log = logger.child('WeaknessAnalysis');
 
@@ -201,7 +202,10 @@ export async function POST(request: Request) {
 
   const startTime = Date.now();
   try {
-    const { quizHistory } = await request.json();
+    const body = await request.json();
+    const err = requireFields(body, { quizHistory: 'array' });
+    if (err) return NextResponse.json({ error: err }, { status: 400 });
+    const { quizHistory } = body;
     log.info('Weakness analysis started', { quizCount: quizHistory.length });
 
     const analyzer = new WeaknessAnalyzer(quizHistory);

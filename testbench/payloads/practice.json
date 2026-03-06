@@ -1,0 +1,6 @@
+{
+  "moduleName": "Control Structures",
+  "weakTopics": ["For Loops", "While Loops", "Recursion"],
+  "preferredFormat": "mcq",
+  "questionCount": 5
+}

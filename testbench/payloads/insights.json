@@ -1,0 +1,23 @@
+{
+  "name": "Demo Student",
+  "learningStyle": "visual",
+  "weeksActive": 4,
+  "quizHistory": [
+    { "topic": "Loops", "score": 60, "week": 1 },
+    { "topic": "Loops", "score": 70, "week": 2 },
+    { "topic": "Loops", "score": 80, "week": 3 },
+    { "topic": "Arrays", "score": 85, "week": 1 },
+    { "topic": "Arrays", "score": 90, "week": 2 },
+    { "topic": "Recursion", "score": 40, "week": 2 },
+    { "topic": "Recursion", "score": 50, "week": 3 }
+  ],
+  "weeklyHoursHistory": [8, 12, 10, 14],
+  "loginFrequency": [5, 6, 4, 7],
+  "weakTopics": ["Recursion"],
+  "strongTopics": ["Arrays"],
+  "studySessions": [
+    { "hour": 10, "score": 85, "duration": 45 },
+    { "hour": 14, "score": 70, "duration": 60 },
+    { "hour": 22, "score": 55, "duration": 90 }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "quizHistory": [
+    { "topic": "Recursion", "score": 90, "week": 1 },
+    { "topic": "Recursion", "score": 40, "week": 2 },
+    { "topic": "Recursion", "score": 85, "week": 3 },
+    { "topic": "Linked Lists", "score": 35, "week": 1 },
+    { "topic": "Linked Lists", "score": 40, "week": 2 },
+    { "topic": "Linked Lists", "score": 38, "week": 3 },
+    { "topic": "Arrays", "score": 90, "week": 1 },
+    { "topic": "Arrays", "score": 92, "week": 2 },
+    { "topic": "Arrays", "score": 95, "week": 3 }
+  ]
+}

@@ -1,35 +1,105 @@
-# NTUlearn — Testbench Guide
+# NTUlearn — Testbench Guide for Judges
 
-> Instructions for judges to test and evaluate the NTUlearn application.
+> Step-by-step instructions for evaluating the NTUlearn adaptive learning platform.
+
+**Live Demo:** [ntulearn-cd226.web.app](https://ntulearn-cd226.web.app)
 
 ---
 
-## Quick Start (< 5 minutes)
+## Table of Contents
 
-### Option A: Live Demo (Recommended)
-Visit our deployed application: **[URL to be added after deployment]**
+- [Prerequisites](#prerequisites)
+- [Option A: Live Demo (Quickest)](#option-a-live-demo-quickest)
+- [Option B: Run Locally](#option-b-run-locally)
+- [Demo Credentials](#demo-credentials)
+- [UI Test Scenarios](#ui-test-scenarios)
+- [API Testing](#api-testing)
+- [Automated Tests](#automated-tests)
+- [Troubleshooting](#troubleshooting)
 
-### Option B: Run Locally
+---
+
+## Prerequisites
+
+| Requirement | Version | Check |
+|------------|---------|-------|
+| Node.js | 20 | `node -v` |
+| npm | 9+ | `npm -v` |
+| Browser | Chrome, Firefox, Safari, or Edge | — |
+| Internet | Required for AI API calls | — |
+
+---
+
+## Option A: Live Demo (Quickest)
+
+1. Open [https://ntulearn-cd226.web.app](https://ntulearn-cd226.web.app)
+2. Use the [demo credentials](#demo-credentials) below
+3. Skip to [UI Test Scenarios](#ui-test-scenarios)
+
+---
+
+## Option B: Run Locally
+
+### 1. Clone & Install
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/YOUR_TEAM/ntulearn.git
-cd ntulearn
-
-# 2. Install dependencies
+git clone https://github.com/narhenn/Project-X.git
+cd Project-X
 npm install
-
-# 3. Set up environment variables
-cp .env.example .env.local
-# Edit .env.local with the credentials provided below
-
-# 4. Start the development server
-npm run dev
-
-# 5. Open http://localhost:3000
 ```
 
-### Demo Credentials
+### 2. Set Up Environment Variables
+
+```bash
+cp .env.example .env.local
+```
+
+Edit `.env.local` and fill in the following keys:
+
+#### Firebase Client Keys
+1. Go to [Firebase Console](https://console.firebase.google.com) → your project
+2. Project Settings → General → Your apps → Web app
+3. Copy the config object values:
+   ```
+   NEXT_PUBLIC_FIREBASE_API_KEY=AIza...
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+   NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
+   NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123
+   ```
+
+#### Firebase Admin SDK Keys
+1. Firebase Console → Project Settings → Service Accounts
+2. Click "Generate new private key" → download JSON
+3. Copy these fields from the JSON:
+   ```
+   FIREBASE_PROJECT_ID=your-project-id
+   FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com
+   FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+   ```
+
+#### OpenAI Key
+1. Go to [OpenAI Platform](https://platform.openai.com/api-keys)
+2. Create a new secret key
+3. Add: `OPENAI_API_KEY=sk-...`
+
+#### Gemini Key
+1. Go to [Google AI Studio](https://aistudio.google.com/)
+2. Click "Get API key" → "Create API key"
+3. Add: `GEMINI_API_KEY=AIza...`
+
+### 3. Start the Server
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3002](http://localhost:3002)
+
+---
+
+## Demo Credentials
 
 | Role | Email | Password |
 |------|-------|----------|
@@ -37,147 +107,231 @@ npm run dev
 | Professor | professor@ntu.edu.sg | demo1234 |
 | Admin | admin@ntu.edu.sg | demo1234 |
 
-### Azure OpenAI Credentials (for local testing)
-```
-AZURE_OPENAI_API_KEY=<provided separately to judges>
-AZURE_OPENAI_ENDPOINT=<provided separately to judges>
-AZURE_OPENAI_DEPLOYMENT=gpt-4o
-AZURE_OPENAI_API_VERSION=2024-06-01
-```
-
 ---
 
-## Test Scenarios
+## UI Test Scenarios
 
 ### Test 1: Student Login & Learner DNA Quiz
-**Expected Time: 3 minutes**
+**Time: ~3 minutes**
 
-1. Go to `/login`
-2. Login as **Student** (student@ntu.edu.sg / demo1234)
+1. Navigate to `/login`
+2. Log in as Student (`student@ntu.edu.sg` / `demo1234`)
 3. You will be redirected to the **Learner DNA Quiz**
-4. Answer all 7 questions
-5. **Expected Result**: A Learner Persona card is generated showing your learning style, preferences, and cognitive profile
-6. The AI will reference this persona for all future recommendations
+4. Answer all 10 questions
+5. **Expected**: A Learner Persona card is generated showing:
+   - Learning style classification
+   - Cognitive profile
+   - Preferred question format
+   - The AI uses this persona for all future recommendations
 
 ### Test 2: Micro-Learning — Video Segments & Quiz Gates
-**Expected Time: 5 minutes**
+**Time: ~5 minutes**
 
-1. Navigate to the **Course** page
-2. You'll see Module 2: Control Structures (SC1003)
-3. Watch Segment 1 (or skip to quiz)
-4. Take the quiz at the end of the segment
-5. **If you pass (≥60%)**: Segment 2 unlocks automatically
-6. **If you fail**: You'll see a "Retry" option and recommendation to rewatch
+1. Navigate to the **Course** page → select a module
+2. Click on Segment 1 to open the video player
+3. Watch the video (or skip to the quiz)
+4. Take the segment quiz
+5. **If pass (>= 60%)**: Segment 2 unlocks automatically
+6. **If fail**: See "Retry" option and recommendation to rewatch
+7. **Expected**: Quiz gate prevents skipping ahead — must pass to unlock next segment
 
-### Test 3: AI Flashcards (Fail a Quiz Twice)
-**Expected Time: 3 minutes**
+### Test 3: AI Flashcards on Quiz Failure
+**Time: ~3 minutes**
 
 1. On any segment quiz, intentionally answer incorrectly
-2. Fail the quiz a second time
-3. **Expected Result**: AI-generated flashcards appear, personalized to the specific questions you missed
-4. Each flashcard has a front (question) and back (explanation)
-5. Flashcard content adapts to your Learner DNA (learning style)
+2. Fail the quiz
+3. **Expected**: AI-generated flashcards appear, personalized to missed questions:
+   - 6 cards with front (question), back (explanation), and hint
+   - Difficulty adapted to your score
+   - Study tip included
 
 ### Test 4: "I'm Lost" Button
-**Expected Time: 2 minutes**
+**Time: ~2 minutes**
 
 1. While watching any video segment, click the **"I'm Lost"** button
-2. **Expected Result**: A popup/card appears with a 3-sentence simplified summary
-3. The summary is generated by Azure OpenAI based on the segment content
-4. The tone is encouraging and uses simple language
+2. **Expected**: A modal appears with a simplified summary
+3. The summary is generated by AI based on the current segment content
+4. Tone is encouraging and uses simple language
 
-### Test 5: Mastery Dashboard
-**Expected Time: 2 minutes**
+### Test 5: Mastery Dashboard & Score Prediction
+**Time: ~3 minutes**
 
 1. Navigate to `/dashboard`
-2. **Expected Result**: You'll see:
+2. **Expected**: You'll see:
    - Per-topic mastery status (Good / Average / Weak)
    - Study streak counter
    - Quiz performance charts
    - Anonymous peer comparison ("You're in the top X%")
+   - Predicted next score with confidence interval
+   - Trend indicators (improving / stable / declining)
 
 ### Test 6: Burnout Detection
-**Expected Time: 2 minutes**
+**Time: ~2 minutes**
 
 1. On the dashboard, check the **Wellbeing** section
-2. The demo data simulates a student studying 40+ hours/week with declining scores
-3. **Expected Result**: A burnout warning card appears with:
-   - Risk level (Low / Moderate / High)
-   - Detected warning signals
-   - AI-generated recommendation for healthier study habits
+2. The system monitors study patterns automatically
+3. **Expected**: A burnout analysis card showing:
+   - Risk level (Low / Moderate / High) with risk score
+   - Detected warning signals with breakdown
+   - AI-generated schedule recommendation
+   - Mental health resources
 
-### Test 7: Practice Paper Generation
-**Expected Time: 3 minutes**
+### Test 7: Learning Insights & Analytics
+**Time: ~3 minutes**
 
-1. Complete all 3 segments of the demo module
-2. Click **"Generate Practice Paper"**
-3. **Expected Result**: An AI-generated practice paper appears with:
-   - Questions targeting your weak topics
-   - Questions in your preferred format (from Learner DNA)
+1. Navigate to `/insights`
+2. **Expected**: Comprehensive analytics including:
+   - Learning state analysis (current phase with confidence)
+   - Forgetting curve estimations with review urgency
+   - Cognitive load tracking per week
+   - Optimal study time (by time-of-day performance)
+   - Weekly evolution report
+   - AI-powered nudges and recommendations
+
+### Test 8: Practice Paper Generation
+**Time: ~3 minutes**
+
+1. Navigate to `/practice-paper`
+2. Select a module and configure options
+3. Click **"Generate Practice Paper"**
+4. **Expected**: An AI-generated practice paper with:
+   - Questions targeting weak topics
+   - Questions in preferred format (from Learner DNA)
    - Correct answers and explanations
 
 ---
 
-## API Testing (for Technical Judges)
+## API Testing
 
-You can test the AI API endpoints directly:
+All API endpoints require a Firebase Authentication token in the `Authorization` header.
 
-### Flashcards API
+### Getting a Token (for curl testing)
+
+If running locally without Firebase Admin configured, the API falls back to `demo-user` mode (no token needed). Otherwise, use browser DevTools:
+
+1. Log in to the app
+2. Open DevTools → Console
+3. Run: `await firebase.auth().currentUser.getIdToken()`
+4. Copy the token
+
+### Quick API Test (using sample-requests.sh)
+
 ```bash
-curl -X POST http://localhost:3000/api/flashcards \
-  -H "Content-Type: application/json" \
-  -d '{
-    "topic": "For Loops in Python",
-    "missedQuestions": ["What does range(5) generate?", "What does break do?"],
-    "learningStyle": "short-term-intensive"
-  }'
+# Make the script executable
+chmod +x testbench/sample-requests.sh
+
+# Run all API tests (uses demo mode — no token needed if admin SDK not configured)
+./testbench/sample-requests.sh
+
+# Run with a real token
+AUTH_TOKEN="your-firebase-token" ./testbench/sample-requests.sh
 ```
 
-### Video Summary API
+### Manual curl Examples
+
 ```bash
-curl -X POST http://localhost:3000/api/summary \
+BASE_URL="http://localhost:3002"
+TOKEN="your-firebase-token"  # Optional if admin SDK not configured
+
+# Burnout analysis
+curl -s -X POST "$BASE_URL/api/burnout" \
   -H "Content-Type: application/json" \
-  -d '{
-    "topic": "Control Structures",
-    "segmentTitle": "If-Else Statements",
-    "segmentContent": "This segment covers conditional logic and branching.",
-    "timestamp": "3:42"
-  }'
+  -H "Authorization: Bearer $TOKEN" \
+  -d @testbench/payloads/burnout.json | jq .
+
+# Flashcard generation
+curl -s -X POST "$BASE_URL/api/flashcards" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d @testbench/payloads/flashcards.json | jq .
+
+# Score prediction
+curl -s -X POST "$BASE_URL/api/predict" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d @testbench/payloads/predict.json | jq .
+
+# Weakness analysis
+curl -s -X POST "$BASE_URL/api/weakness-analysis" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d @testbench/payloads/weakness-analysis.json | jq .
 ```
 
-### Burnout Analysis API
+See `testbench/payloads/` for all 8 sample payloads.
+
+---
+
+## Automated Tests
+
 ```bash
-curl -X POST http://localhost:3000/api/burnout \
-  -H "Content-Type: application/json" \
-  -d '{
-    "sessionsThisWeek": 14,
-    "avgDurationMinutes": 200,
-    "avgSessionHour": 23,
-    "scoresTrend": [80, 70, 55],
-    "streakDays": 18,
-    "totalHoursThisWeek": 42
-  }'
+# Run the full test suite (30 tests)
+npm test
+```
+
+**Test coverage:**
+
+| File | Tests | What it covers |
+|------|-------|---------------|
+| `__tests__/api/auth.test.ts` | 4 | Firebase token verification, demo mode fallback, missing credentials |
+| `__tests__/api/validate.test.ts` | 15 | Request body validation — types, required fields, null/undefined, arrays, objects |
+| `__tests__/api/routes.test.ts` | 11 | Auth enforcement (401) and validation (400) for all major endpoints |
+
+```bash
+# Expected output
+✓ __tests__/api/auth.test.ts (4 tests)
+✓ __tests__/api/validate.test.ts (15 tests)
+✓ __tests__/api/routes.test.ts (11 tests)
+
+Test Files  3 passed (3)
+     Tests  30 passed (30)
 ```
 
 ---
 
-## Known Limitations
+## Troubleshooting
 
-- SSO is simulated (not connected to actual NTU Shibboleth in demo)
-- Video content uses placeholder videos (not actual NTU lectures)
-- Peer comparison uses simulated class data
-- Study community feature is UI-only in this prototype
-- Firebase free tier has limited concurrent connections
+### "Module not found" on npm run dev
+```bash
+rm -rf node_modules package-lock.json
+npm install
+```
+
+### Port 3002 already in use
+```bash
+# Find and kill the process
+lsof -i :3002
+kill -9 <PID>
+npm run dev
+```
+
+### Firebase Auth errors
+- Verify all 6 `NEXT_PUBLIC_FIREBASE_*` vars are set in `.env.local`
+- Verify Auth → Email/Password is enabled in Firebase Console
+- Verify demo user accounts exist in Firebase Auth
+
+### API returns 401 Unauthorized
+- Ensure `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY` are set
+- If testing without admin SDK, remove these 3 vars — API falls back to demo mode
+
+### AI features return errors
+- Verify `OPENAI_API_KEY` is set and has credits
+- Verify `GEMINI_API_KEY` is set and enabled
+- Check network connectivity to api.openai.com and generativelanguage.googleapis.com
+
+### Build fails with type errors
+```bash
+npm run build
+# If errors, check TypeScript version
+npx tsc --version  # Should be 5.5+
+```
+
+### Tests fail
+```bash
+npm test
+# If module resolution fails, ensure vitest.config.ts has path aliases configured
+```
 
 ---
 
-## Environment Requirements
-
-- Node.js 18+
-- npm 9+
-- Modern browser (Chrome, Firefox, Safari, Edge)
-- Internet connection (for Azure OpenAI API calls)
-
----
-
-*NTUlearn — DLWeek 2026 Microsoft Track*
+*NTUlearn — DLWeek 2026 | Microsoft Track*

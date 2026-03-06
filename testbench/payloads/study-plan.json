@@ -1,0 +1,12 @@
+{
+  "weakTopics": ["Recursion", "Linked Lists"],
+  "quizHistory": [
+    { "topic": "Recursion", "score": 45 },
+    { "topic": "Linked Lists", "score": 50 },
+    { "topic": "Arrays", "score": 90 },
+    { "topic": "Recursion", "score": 55 }
+  ],
+  "strongTopics": ["Arrays", "Strings"],
+  "avgSessionMinutes": 60,
+  "learningStyle": "visual"
+}

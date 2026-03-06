@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { LinearRegression } from '@/lib/insights-data';
 import { logger } from '@/lib/logger';
 import { verifyAuth } from '@/lib/api-auth';
+import { requireFields } from '@/lib/validate';
 
 const log = logger.child('PredictionEngine');
 
@@ -10,10 +11,13 @@ export async function POST(request: Request) {
   if (!authResult) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const { scores, topics } = await request.json();
+    const body = await request.json();
+    const err = requireFields(body, { scores: 'array' });
+    if (err) return NextResponse.json({ error: err }, { status: 400 });
+    const { scores, topics } = body;
     log.info('Prediction requested', { scoreCount: scores.length });
 
-    if (!scores || scores.length < 2) {
+    if (scores.length < 2) {
       return NextResponse.json({ error: 'Need at least 2 scores' }, { status: 400 });
     }
 

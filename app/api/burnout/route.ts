@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { complete } from '@/lib/openai-ai';
 import { verifyAuth } from '@/lib/api-auth';
+import { requireFields } from '@/lib/validate';
 
 const log = logger.child('BurnoutAPI');
 
@@ -11,6 +12,8 @@ export async function POST(request: Request) {
 
   try {
     const studyData = await request.json();
+    const err = requireFields(studyData, { totalHoursThisWeek: 'number' });
+    if (err) return NextResponse.json({ error: err }, { status: 400 });
     log.info('Burnout analysis requested', { hours: studyData.totalHoursThisWeek });
 
     const signals = [];
