@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { authFetch } from '@/lib/api-client';
 
 export type ChatMessage = { role: 'user' | 'model'; text: string; image?: string };
@@ -46,9 +47,10 @@ export function ChatbotModal({
     setAttachedImage(null);
 
     const topicContext = [moduleTopic, segmentTitle].filter(Boolean).join('. ');
+    const cotRule = ` Always explain in clear steps: Step 1 … Step 2 … Step 3 … So the answer is … Use this structure for every explanation. If the student asks about a multiple-choice question or lists options, state which option is correct, explain why it is correct, and for each wrong option briefly say why it does not work (e.g. "Option B is wrong because...").`;
     const context = topicContext
-      ? `You are a tutor helping a student with ONE specific video lecture. The subject of this video is ONLY: ${topicContext}. Current segment (${segmentIndex + 1} of ${segmentCount}): "${segmentTitle}". Video time: about ${Math.floor(currentTimeSeconds / 60)}:${String(currentTimeSeconds % 60).padStart(2, '0')}. They clicked "I'm lost". RULES: Answer ONLY about this video's topic (e.g. computer/software security, format strings, vulnerabilities). Do NOT mention or discuss any other subject (no biology, no mathematics/differentiation, no chemistry, no unrelated topics). If the student asks about something outside this video, politely redirect to the current topic. Be concise and helpful.`
-      : `The student is watching a learning video. They are on segment ${segmentIndex + 1} of ${segmentCount} (about ${Math.floor(currentTimeSeconds / 60)}:${String(currentTimeSeconds % 60).padStart(2, '0')} in). They clicked "I'm lost". Be concise and helpful.`;
+      ? `You are a tutor helping a student with ONE specific video lecture. The subject of this video is ONLY: ${topicContext}. Current segment (${segmentIndex + 1} of ${segmentCount}): "${segmentTitle}". Video time: about ${Math.floor(currentTimeSeconds / 60)}:${String(currentTimeSeconds % 60).padStart(2, '0')}. They clicked "I'm lost". RULES: Answer ONLY about this video's topic (e.g. computer/software security, format strings, vulnerabilities). Do NOT mention or discuss any other subject (no biology, no mathematics/differentiation, no chemistry, no unrelated topics). If the student asks about something outside this video, politely redirect to the current topic. Be concise and helpful.${cotRule}`
+      : `The student is watching a learning video. They are on segment ${segmentIndex + 1} of ${segmentCount} (about ${Math.floor(currentTimeSeconds / 60)}:${String(currentTimeSeconds % 60).padStart(2, '0')} in). They clicked "I'm lost". Be concise and helpful.${cotRule}`;
     systemInstructionRef.current = context;
 
     const greeting = segmentTitle
@@ -150,7 +152,23 @@ export function ChatbotModal({
                 {msg.role === 'user' && msg.image && (
                   <img src={msg.image} alt="Attached" className="mb-2 max-h-32 rounded object-contain border border-white/20" />
                 )}
-                {msg.text}
+                {msg.role === 'model' ? (
+                  <div className="chat-markdown text-left whitespace-pre-wrap break-words">
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                        ul: ({ children }) => <ul className="list-disc list-inside pl-2 mb-2 space-y-2 [&>li]:pl-1">{children}</ul>,
+                        ol: ({ children }) => <ol className="list-decimal list-inside pl-2 mb-2 space-y-2 [&>li]:pl-1">{children}</ol>,
+                        li: ({ children }) => <li className="leading-snug">{children}</li>,
+                        strong: ({ children }) => <strong className="font-semibold text-amber-200">{children}</strong>,
+                      }}
+                    >
+                      {msg.text}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  msg.text
+                )}
               </div>
             </div>
           ))}
