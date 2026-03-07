@@ -13,38 +13,25 @@ function getOpenAI(): OpenAI {
   return new OpenAI({ apiKey: key });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Guardian AI Tutor — /api/tutor
-// 1:1 port of Pranati's ai_engine.py (dashboard_final.zip)
-// Same prompt, same data extraction, ported to OpenAI GPT-4o-mini
-// ─────────────────────────────────────────────────────────────────────────────
-
-/* ── analyze_performance (exact copy of Pranati's Python function) ───── */
-
 function analyzePerformance(history: number[]): { prediction: number | null; status: string } {
   if (!history || history.length < 2) {
     return { prediction: null, status: 'Not enough data' };
   }
-
   const n = history.length;
   const xMean = (n - 1) / 2;
   const yMean = history.reduce((a, b) => a + b, 0) / n;
-
   let num = 0;
   let den = 0;
   for (let i = 0; i < n; i++) {
     num += (i - xMean) * (history[i] - yMean);
     den += (i - xMean) ** 2;
   }
-
   const slope = den !== 0 ? num / den : 0;
   const intercept = yMean - slope * xMean;
   const prediction = Math.round((slope * n + intercept) * 10) / 10;
-
   let status = 'Stable';
   if (slope < 0) status = 'Burnout Risk';
   else if (slope > 2) status = 'Accelerated Growth';
-
   return { prediction, status };
 }
 
@@ -61,7 +48,6 @@ async function getStudentData(studentId = 'student_1'): Promise<Record<string, a
   } catch (err: any) {
     log.debug('Firestore unavailable', { reason: err.message });
   }
-
   try {
     const fs = await import('fs/promises');
     const path = await import('path');
@@ -74,7 +60,6 @@ async function getStudentData(studentId = 'student_1'): Promise<Record<string, a
   } catch (err: any) {
     log.error('Local JSON failed too', { error: err.message });
   }
-
   return null;
 }
 
@@ -92,7 +77,13 @@ export async function POST(request: Request) {
   if (!authResult) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const { question, image, learningContext } = await request.json() as { question?: string; image?: string; learningContext?: any };
+    const { question, image, learningContext, conversationHistory } = await request.json() as {
+      question?: string;
+      image?: string;
+      learningContext?: any;
+      conversationHistory?: Array<{ role: string; content: string }>;
+    };
+
     const hasImage = typeof image === 'string' && image.startsWith('data:image');
     if (!question && !hasImage) {
       return NextResponse.json({ answer: 'Please ask a question or attach an image!' }, { status: 400 });
@@ -101,27 +92,53 @@ export async function POST(request: Request) {
 
     log.info('Tutor query', { question: questionText.slice(0, 80), hasImage, hasLearningContext: !!learningContext });
 
-    // ── Step 1: Get student data (static module data) ──
+    // ── Step 1: Get student data ──
     const studentData = await getStudentData(authResult.uid);
 
     // ── Step 2: Extract fields ──
     const topics: Record<string, any> = studentData?.moduleData || {};
     const history: Record<string, number> = studentData?.history || {};
     const dna: Record<string, any> = studentData?.dna || {};
+    const confidence: Record<string, number> = {};
+
+    for (const t of Object.keys(topics)) {
+      confidence[t] = topics[t].confidence;
+    }
 
     const historyScores = Object.values(history);
     const { prediction: pred, status } = analyzePerformance(historyScores);
 
-    // ── Step 2.5: RAG — retrieve relevant course content ──
-    const relevantChunks = await retrieveRelevantChunks(question, 4);
+    // ── Step 2.5: Trim data to reduce token usage ──
+    const topTopics = Object.entries(topics)
+      .sort(([, a]: any, [, b]: any) => a.confidence - b.confidence)
+      .slice(0, 6);
+
+    const recentQuizDetails = Object.entries(studentData?.quizDetails || {})
+      .slice(-2);
+
+    // ── Step 2.6: RAG — only for concept questions ──
+    const isPerformanceQuestion = /\b(strong|weak|topic|score|quiz|mistake|confidence|retention|how am i|progress|what should|study today|focus|predict|plan)\b/i.test(questionText);
+    const relevantChunks = isPerformanceQuestion
+      ? []
+      : await retrieveRelevantChunks(questionText, 3);
+
     const courseContext = relevantChunks.length > 0
-      ? `\nRelevant course material from lectures:\n${relevantChunks.map((c, i) => `[${i + 1}] ${c}`).join('\n\n')}`
+      ? `\nRelevant course material:\n${relevantChunks.map((c: any, i: number) =>
+          `[${i + 1}] (${c.similarity}% match | ${c.topic})\n${c.content}`
+        ).join('\n\n')}`
       : '';
 
-    // ── Step 2.6: Build live learning analytics context ──
+    // ── Step 2.7: Conversation history context ──
+    const conversationContext = conversationHistory && conversationHistory.length > 1
+      ? `\nPrevious conversation:\n${conversationHistory.slice(-6, -1).map((m: any) =>
+          `${m.role === 'user' ? 'Student' : 'Guardian'}: ${m.content}`
+        ).join('\n')}`
+      : '';
+
+    // ── Step 2.8: Build live learning analytics context ──
     const lc = learningContext || {};
     const analyticsContext = learningContext ? `
-LIVE LEARNING ANALYTICS (real-time from student's Firebase data):
+LIVE LEARNING ANALYTICS (real-time from Firebase):
 - Overall Memory Retention: ${lc.overallRetention ?? 'N/A'}%
 - Cognitive Load: ${lc.cognitiveLoad?.load ?? 'N/A'}% (${lc.cognitiveLoad?.level ?? 'unknown'}, trend: ${lc.cognitiveLoad?.trend ?? 'stable'})
 - Learning Velocity: ${lc.learningVelocity?.velocity ?? 0} pts/quiz (${lc.learningVelocity?.trend ?? 'steady'})
@@ -139,65 +156,107 @@ ${(lc.optimalStudyTime || []).map((t: any) => `  * ${t.label}: ${t.avgScore}% av
 
     // ── Step 3: Build prompt ──
     const prompt = `
-You are Guardian AI, an advanced AI Study Coach and academic tutor for NTU Singapore courses.
-You have FULL access to the student's real-time learning analytics from Firebase.
+You are Guardian, this student's dedicated personal tutor for SC3010 Computer Security at NTU.
+You have complete knowledge of their learning history, mistakes, cognitive state, and actual lecture material.
+You are NOT a dashboard or a report generator. You are a tutor. You respond to what the student actually asked — nothing more.
 
-Student learning style: ${dna.learningStyle || lc.learningVelocity?.trend || 'unknown'}
+STUDENT PROFILE:
+Learning style: ${dna.learningStyle || 'unknown'} | Cognitive score: ${dna.cognitiveScore || 'unknown'}/10
+Personality: ${(dna.personalityTraits || []).join(', ')}
+Peak focus: ${studentData?.studyPatterns?.peakFocusTime || 'unknown'} | Best day: ${studentData?.studyPatterns?.bestDayOfWeek || 'unknown'} | Worst day: ${studentData?.studyPatterns?.worstDayOfWeek || 'unknown'}
+Preferred session: ${studentData?.studyPatterns?.preferredSessionLengthMinutes || 45} minutes
 ${analyticsContext}
 
-Detailed performance per topic:
-${Object.entries(topics).map(([k, v]: any) =>
-  `- ${v.name}:
-    * Confidence: ${Math.round((v.confidence || 0) * 100)}%
-    * Memory Retention: ${Math.round((v.memoryRetentionRate || 0) * 100)}%
-    * Mistakes Made: ${v.mistakesMade || 0}
-    * Flashcard Difficulty: ${v.flashcardDifficulty || 'unknown'}
-    * Time Spent: ${v.timeTakenMinutes || 0} minutes
-    * Study Method Used: ${v.studyMethod || 'unknown'}
-    * Completed: ${v.completed}
-    * Hint: ${v.hint || 'none'}`
+TOPIC MASTERY (weakest first):
+${topTopics.map(([k, v]: any) =>
+  `${v.name}: ${Math.round((v.confidence || 0) * 100)}% confidence | ${Math.round((v.memoryRetentionRate || 0) * 100)}% retention | ${v.mistakesMade || 0} mistakes | ${v.timeTakenMinutes || 0}min via ${v.studyMethod} | completed: ${v.completed}`
 ).join('\n')}
 
-Study patterns:
-- Peak focus time: ${studentData?.studyPatterns?.peakFocusTime || 'unknown'}
-- Preferred session length: ${studentData?.studyPatterns?.preferredSessionLengthMinutes || 'unknown'} minutes
-- Review frequency: ${studentData?.studyPatterns?.reviewFrequency || 'unknown'}
-- Best day: ${studentData?.studyPatterns?.bestDayOfWeek || 'unknown'}
-- Worst day: ${studentData?.studyPatterns?.worstDayOfWeek || 'unknown'}
-
-Easiest topics: ${JSON.stringify(studentData?.topicInsights?.easiestTopics || [])}
+TOPICS NEEDING URGENT ATTENTION:
+${JSON.stringify(studentData?.predictions?.topicsToFocusNext || [])}
 Hardest topics: ${JSON.stringify(studentData?.topicInsights?.hardestTopics || [])}
-Most time consuming: ${JSON.stringify(studentData?.topicInsights?.mostTimeConsuming || [])}
 
-Quiz score history: ${JSON.stringify(historyScores.length > 0 ? historyScores : (lc.retentionRates || []).map((r: any) => r.retention))}
-Predicted next score: ${pred ?? lc.predictedScore?.predicted ?? 'N/A'}, Trend: ${status}
-Topics to focus next: ${JSON.stringify(studentData?.predictions?.topicsToFocusNext || [])}
-${courseContext}
-
-Student question: ${questionText}${hasImage ? ' (The student attached an image — read it and address any doubt or question shown.)' : ''}
-
-Recent quiz mistakes:
-${Object.entries(studentData?.quizDetails || {}).map(([quiz, details]: any) =>
-  `${quiz} (${details.topic}, score: ${details.score}/${details.totalQuestions}):
-${(details.wrongQuestions || []).map((q: any) =>
-  `  - Question: "${q.question}"
-     Student answered: "${q.studentAnswer}"
-     Correct answer: "${q.correctAnswer}"
-     Concept: ${q.concept}
-     Mistake type: ${q.mistakeType}`
+QUIZ MISTAKE HISTORY (recent):
+${recentQuizDetails.map(([quiz, d]: any) =>
+  `${quiz} — ${d.topic} (${d.score}/${d.totalQuestions}):
+${d.wrongQuestions?.map((q: any) =>
+  `  ✗ "${q.question}" → answered "${q.studentAnswer}" | correct: "${q.correctAnswer}" | type: ${q.mistakeType}`
 ).join('\n')}`
 ).join('\n\n')}
 
-Based on the student's performance data, quiz mistakes, live analytics AND the relevant course material above:
-1. Answer their question directly, referencing specific lecture content where relevant.
-2. Mention specific quiz mistakes that relate to their question — call out exact wrong answers.
-3. Analyse their memory retention and confidence for related topics — use the actual numbers from live analytics.
-4. Reference their mistake pattern (conceptual vs memory mistakes) to explain why they struggle.
-5. Look at their study patterns (peak focus time: ${studentData?.studyPatterns?.peakFocusTime}, best day: ${studentData?.studyPatterns?.bestDayOfWeek}) and cognitive load to tailor advice.
-6. If they ask about study plans, use their optimal study time data and cognitive load to suggest a schedule.
-7. If they ask about weak topics, reference the actual retention rates and urgency levels.
-8. Suggest a very specific next action based on their flashcard difficulty, preferred study method, and spaced repetition needs.
-9. Be detailed, data-driven, and encouraging — like a personal tutor who knows everything about this student.
+SCORE HISTORY: ${JSON.stringify(historyScores)} → trend: ${status}
+${courseContext}
+${conversationContext}
+
+STUDENT QUESTION: ${questionText}${hasImage ? ' (The student attached an image — read it and address any doubt or question shown.)' : ''}
+
+═══════════════════════════════════════════════
+HOW TO RESPOND — READ THIS CAREFULLY
+═══════════════════════════════════════════════
+
+GOLDEN RULE: Answer ONLY what was asked. Do not volunteer extra information.
+
+CLASSIFY THE QUESTION FIRST, THEN RESPOND:
+
+TYPE 1 — Concept question (what is X, explain Y, how does Z work)
+→ Explain the concept clearly using lecture material as your source
+→ One concrete example from the notes
+→ Only mention student data if they got this exact concept wrong in a quiz — make it feel natural
+→ End with one specific question that tests deeper understanding
+→ Length: 2-3 paragraphs max
+
+TYPE 2 — Personal performance question ("why do I keep failing", "what are my weak areas", "how am I doing", "my strong topics", "my weak topics", "what quizzes did I complete")
+→ Use their data — specific scores, confidence percentages, mistake counts
+→ Answer ONLY what was asked — strong topics = talk about strong topics only, do NOT pivot to weak areas or study recommendations
+→ Be precise with numbers: "your confidence in Threat Modeling is 70%, retention 75%"
+→ One specific observation about the pattern you notice
+→ End with one question that goes deeper on what they asked — not a pivot to something else
+→ Length: 2 paragraphs max
+
+TYPE 3 — Study guidance (what should I study today, I have 1 hour, what to focus on)
+→ ONE recommendation only — not three topics
+→ Factor in cognitive load, peak focus time, retention urgency, SM-2 due cards if available
+→ Explain WHY this specific thing today
+→ End with one immediate action
+→ Length: 2 paragraphs max
+
+TYPE 4 — Emotional/casual (I'm stressed, I give up, I don't understand anything)
+→ One warm acknowledgement sentence first
+→ Pick the single easiest win available right now
+→ Keep it short and human — no data dump
+→ Length: 2 paragraphs max
+
+TYPE 5 — Follow-up (explain again, what about X, why)
+→ Build on the conversation — don't re-establish context
+→ Be concise
+→ Length: 1-2 paragraphs max
+
+STRICT RULES — NEVER BREAK THESE:
+- Flowing prose only — no headers, no bullets, no numbered lists, no markdown
+- Maximum 3 paragraphs for any response
+- Never say: "great question", "certainly!", "of course!", "keep up the great work", "I hope this helps", "feel free to ask"
+- Never start your response with "I"
+- End with EITHER a follow-up question OR one immediate action — never both, never neither
+- Use actual numbers naturally in sentences — not in lists
+- Never mention topics irrelevant to the question asked
+- If cognitive load is high — keep response shorter and more focused
+
+WHEN TO USE STUDENT DATA:
+- Type 1 questions: only mention data if they specifically got this concept wrong in a quiz
+- Type 2-3 questions: use data extensively and specifically
+- Type 4-5 questions: use data sparingly, only when it helps
+
+WHEN TO USE LECTURE MATERIAL:
+- Always use it for Type 1 questions — weave it naturally, don't quote it robotically
+- Type 2 performance questions — only if the question mentions a specific concept
+- If the question is purely about scores, topics, progress, or personal data — ignore lecture material completely
+- Never force lecture content into Type 2-5 questions where it's not relevant
+
+PERSONALITY:
+- You know this student well — warm, direct, and precise
+- You notice patterns they don't see: "you went from 6 to 9 between quiz 3 and 4 — that's the worked examples paying off"
+- You challenge gently when they're wrong
+- You never pad responses with filler — every sentence earns its place
 `;
 
     // ── Step 4: Call OpenAI (vision when image attached) ──
@@ -217,7 +276,7 @@ Based on the student's performance data, quiz mistakes, live analytics AND the r
               ],
             },
           ],
-          max_tokens: 1024,
+          max_tokens: 2048,
           temperature: 0.7,
         });
         response = completion.choices[0]?.message?.content?.trim() ?? null;
@@ -225,19 +284,27 @@ Based on the student's performance data, quiz mistakes, live analytics AND the r
         log.error('OpenAI vision exception', { error: err instanceof Error ? err.message : String(err) });
       }
     }
+
     if (!response) {
       response = await callTutorAI(prompt);
     }
 
     if (response) {
-      return NextResponse.json({ answer: response });
+      return NextResponse.json({
+        answer: response,
+        ragSources: relevantChunks.map((c: any) => ({
+          topic: c.topic,
+          similarity: c.similarity,
+          source: c.source,
+          preview: c.content?.slice(0, 80) + '...',
+        })),
+      });
     }
 
-    // Fallback — use learning context if available
+    // Fallback
     const weakList = (lc.weakTopics || []).slice(0, 3).join(', ') || 'some topics';
-    const retStr = (lc.retentionRates || []).slice(0, 3).map((r: any) => `${r.topic} (${r.retention}%)`).join(', ') || 'N/A';
     return NextResponse.json({
-      answer: `Tutor is resting 😴 AI is unavailable right now. Quick summary from your data: your weakest topics are ${weakList}. Current retention: ${retStr}. Focus on those first!`,
+      answer: `Tutor is resting 😴 AI is unavailable right now. Your weakest topics are ${weakList}. Focus on those first!`,
     });
 
   } catch (error: any) {

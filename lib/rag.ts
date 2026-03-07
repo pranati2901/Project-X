@@ -8,8 +8,8 @@ async function getSupabase() {
 
 export async function retrieveRelevantChunks(
   question: string | undefined,
-  topK = 4
-): Promise<string[]> {
+  topK = 3
+): Promise<{ content: string; similarity: number; topic: string; source: string }[]> {
   try {
     if (!question) return [];
     const supabase = await getSupabase();
@@ -21,14 +21,12 @@ export async function retrieveRelevantChunks(
     const OpenAI = (await import('openai')).default;
     const openai = new OpenAI({ apiKey });
 
-    // 1. Embed the student's question
     const res = await openai.embeddings.create({
       model: 'text-embedding-ada-002',
       input: question,
     });
     const queryEmbedding = res.data[0].embedding;
 
-    // 2. Search Supabase for similar chunks
     const { data, error } = await supabase.rpc('match_chunks', {
       query_embedding: queryEmbedding,
       match_count: topK,
@@ -40,8 +38,12 @@ export async function retrieveRelevantChunks(
       return [];
     }
 
-    // 3. Return the text content of matched chunks
-    return (data ?? []).map((row: any) => row.content);
+    return (data ?? []).map((row: any) => ({
+      content: row.content,
+      similarity: Math.round(row.similarity * 100),
+      topic: row.topic,
+      source: row.source,
+    }));
 
   } catch (err) {
     console.error('RAG failed:', err);

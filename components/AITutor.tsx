@@ -3,7 +3,12 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useStudentData } from '@/lib/useStudentData';
 import { authFetch } from '@/lib/api-client';
 
-type Message = { role: 'user' | 'ai'; text: string; image?: string };
+type Message = {
+  role: 'user' | 'ai';
+  text: string;
+  image?: string;
+  ragSources?: Array<{ topic: string; similarity: number; source: string; preview: string }>;
+};
 type ChatSize = 'compact' | 'expanded' | 'fullscreen';
 
 const SIZE_STYLES: Record<ChatSize, string> = {
@@ -26,7 +31,6 @@ const QUICK_PROMPTS = [
 /* ── Simple Markdown Renderer ─────────────────────────────────────────── */
 
 function renderMarkdown(text: string) {
-  // Split into lines and process
   const lines = text.split('\n');
   const elements: React.ReactNode[] = [];
   let key = 0;
@@ -34,13 +38,11 @@ function renderMarkdown(text: string) {
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i];
 
-    // Blank line → spacer
     if (!line.trim()) {
       elements.push(<div key={key++} className="h-2" />);
       continue;
     }
 
-    // Numbered list: "1. Text" or "1) Text"
     const numMatch = line.match(/^(\d+)[.)]\s+(.+)/);
     if (numMatch) {
       elements.push(
@@ -52,7 +54,6 @@ function renderMarkdown(text: string) {
       continue;
     }
 
-    // Bullet list: "- Text" or "* Text" or "• Text"
     const bulletMatch = line.match(/^[-*•]\s+(.+)/);
     if (bulletMatch) {
       elements.push(
@@ -64,21 +65,18 @@ function renderMarkdown(text: string) {
       continue;
     }
 
-    // Regular line
     elements.push(<p key={key++} className="my-0.5">{inlineFormat(line)}</p>);
   }
 
   return <>{elements}</>;
 }
 
-/** Inline formatting: **bold**, *italic*, `code` */
 function inlineFormat(text: string): React.ReactNode {
   const parts: React.ReactNode[] = [];
   let remaining = text;
   let key = 0;
 
   while (remaining.length > 0) {
-    // Bold: **text**
     const boldMatch = remaining.match(/^([\s\S]*?)\*\*([\s\S]+?)\*\*([\s\S]*)/);
     if (boldMatch) {
       if (boldMatch[1]) parts.push(<span key={key++}>{boldMatch[1]}</span>);
@@ -87,7 +85,6 @@ function inlineFormat(text: string): React.ReactNode {
       continue;
     }
 
-    // Italic: *text*
     const italicMatch = remaining.match(/^([\s\S]*?)\*([\s\S]+?)\*([\s\S]*)/);
     if (italicMatch) {
       if (italicMatch[1]) parts.push(<span key={key++}>{italicMatch[1]}</span>);
@@ -96,7 +93,6 @@ function inlineFormat(text: string): React.ReactNode {
       continue;
     }
 
-    // Code: `text`
     const codeMatch = remaining.match(/^([\s\S]*?)`([\s\S]+?)`([\s\S]*)/);
     if (codeMatch) {
       if (codeMatch[1]) parts.push(<span key={key++}>{codeMatch[1]}</span>);
@@ -105,7 +101,6 @@ function inlineFormat(text: string): React.ReactNode {
       continue;
     }
 
-    // No match — push rest
     parts.push(<span key={key++}>{remaining}</span>);
     break;
   }
@@ -119,7 +114,11 @@ export default function AITutor() {
   const [open, setOpen] = useState(false);
   const [size, setSize] = useState<ChatSize>('compact');
   const [messages, setMessages] = useState<Message[]>([
+<<<<<<< Updated upstream
     { role: 'ai', text: 'Hi! I\'m your Guardian AI Tutor 🛡️ I have full access to your learning analytics — memory retention, cognitive load, optimal study times, and predicted scores. Ask me anything about your studies!' },
+=======
+    { role: 'ai', text: 'Hi! I\'m your Guardian AI Tutor 🛡️ I have access to your learning data — quiz scores, topic confidence, study patterns, and your actual lecture material. Ask me anything!' },
+>>>>>>> Stashed changes
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -146,6 +145,7 @@ export default function AITutor() {
     setLoading(true);
 
     try {
+<<<<<<< Updated upstream
       // Build learning context from student data for the AI coach
       const learningContext = {
         overallRetention: studentData?.overallRetention,
@@ -178,11 +178,42 @@ export default function AITutor() {
       });
       const apiData = await res.json();
       setMessages(prev => [...prev, { role: 'ai', text: apiData.answer || 'Sorry, couldn\'t process that. Try again!' }]);
+=======
+      // Build conversation history for context
+      const conversationHistory = [...messages, userMsg].map(m => ({
+        role: m.role === 'user' ? 'user' : 'assistant',
+        content: m.text,
+      }));
+
+      const res = await fetch('/api/tutor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: questionToSend,
+          image: imageToSend,
+          conversationHistory,
+        }),
+      });
+
+      const data = await res.json();
+      const aiText = data.answer || 'Sorry, couldn\'t process that. Try again!';
+      const ragSources = data.ragSources;
+
+      setMessages(prev => [...prev, {
+        role: 'ai',
+        text: aiText,
+        ragSources,
+      }]);
+>>>>>>> Stashed changes
     } catch {
       setMessages(prev => [...prev, { role: 'ai', text: 'Connection issue — please try again.' }]);
     }
     setLoading(false);
+<<<<<<< Updated upstream
   }, [input, loading, attachedImage, studentData]);
+=======
+  }, [input, loading, attachedImage, messages]);
+>>>>>>> Stashed changes
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
@@ -221,7 +252,11 @@ export default function AITutor() {
           <span className="text-xl">🛡️</span>
           <div>
             <p className="text-sm font-bold text-white">Guardian AI Tutor</p>
+<<<<<<< Updated upstream
             <p className="text-xs text-blue-300">SC3010 Computer Security · Powered by OpenAI</p>
+=======
+            <p className="text-xs text-blue-300">SC3010 Computer Security · RAG-powered</p>
+>>>>>>> Stashed changes
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -251,14 +286,66 @@ export default function AITutor() {
                 ? 'bg-blue-500 text-white rounded-br-md'
                 : 'bg-white/10 text-slate-200 rounded-bl-md'
             }`}>
-              {m.role === 'ai' && <span className="text-xs text-blue-400 font-bold block mb-1">🛡️ Guardian AI</span>}
+              {m.role === 'ai' && (
+                <span className="text-xs text-blue-400 font-bold block mb-1">🛡️ Guardian AI</span>
+              )}
               {m.role === 'user' && m.image && (
                 <img src={m.image} alt="Attached" className="mb-2 max-h-32 rounded-lg object-contain border border-white/20" />
               )}
+
+              {/* Message content */}
               {m.role === 'ai' ? renderMarkdown(m.text) : m.text}
+
+              {/* RAG Sources */}
+              {m.role === 'ai' && m.ragSources && m.ragSources.length > 0 && (
+                <details className="mt-2 border-t border-white/10 pt-2">
+                  <summary className="text-xs text-blue-400 cursor-pointer hover:text-blue-300 select-none">
+                    📚 {m.ragSources.length} lecture source{m.ragSources.length > 1 ? 's' : ''} retrieved
+                  </summary>
+                  <div className="mt-1.5 space-y-1">
+                    {m.ragSources.map((s, idx) => (
+                      <div key={idx} className="text-xs text-slate-400 bg-white/5 rounded-lg px-2 py-1.5">
+                        <span className="text-green-400 font-medium">{s.similarity}% match</span>
+                        <span className="text-slate-500 mx-1">·</span>
+                        <span className="text-blue-300">{s.topic}</span>
+                        <span className="text-slate-500 mx-1">·</span>
+                        <span className="italic">{s.source}</span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+
+              {/* Human-in-the-loop buttons */}
+              {m.role === 'ai' && i > 0 && (
+                <div className="mt-2 flex gap-2 border-t border-white/10 pt-2">
+                  <button
+                    onClick={() => sendMessage(`The previous response was not helpful. Please give a better answer to: "${messages[i - 1]?.text}"`)}
+                    disabled={loading}
+                    className="text-xs px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all border border-white/10 disabled:opacity-50"
+                  >
+                    ✏️ Refine
+                  </button>
+                  <button
+                    onClick={() => sendMessage('Can you give me a simpler explanation of what you just said?')}
+                    disabled={loading}
+                    className="text-xs px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all border border-white/10 disabled:opacity-50"
+                  >
+                    🔁 Simplify
+                  </button>
+                  <button
+                    onClick={() => sendMessage('Give me a concrete example of what you just explained')}
+                    disabled={loading}
+                    className="text-xs px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all border border-white/10 disabled:opacity-50"
+                  >
+                    💡 Example
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         ))}
+
         {loading && (
           <div className="flex justify-start">
             <div className="bg-white/10 px-4 py-3 rounded-2xl rounded-bl-md">
@@ -308,7 +395,7 @@ export default function AITutor() {
         )}
         <div className="flex gap-2">
           <button type="button" onClick={() => fileInputRef.current?.click()} disabled={loading}
-            className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 disabled:opacity-50 shrink-0" title="Attach image (screenshot, handwritten doubt)">
+            className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 disabled:opacity-50 shrink-0" title="Attach image">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
           </button>
           <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown}
